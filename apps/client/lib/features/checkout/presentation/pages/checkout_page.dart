@@ -35,6 +35,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   Future<void> _submit() async {
     final deliveryType = ref.read(deliveryTypeProvider);
     AddressModel? address;
+
     if (deliveryType == DeliveryType.delivery) {
       if (_streetController.text.isEmpty || _numberController.text.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -42,6 +43,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         );
         return;
       }
+
       address = AddressModel(
         street: _streetController.text.trim(),
         number: _numberController.text.trim(),
@@ -55,16 +57,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       );
     }
 
-    final orderId = await ref.read(checkoutControllerProvider.notifier).placeOrder(
-          address: address,
-          notes: _notesController.text.trim().isEmpty
-              ? null
-              : _notesController.text.trim(),
-        );
+    final orderId =
+        await ref.read(checkoutControllerProvider.notifier).placeOrder(
+              address: address,
+              notes: _notesController.text.trim().isEmpty
+                  ? null
+                  : _notesController.text.trim(),
+            );
 
     if (orderId != null && mounted) {
-  context.go('/orders/$orderId');
-}
+      context.go('/orders/$orderId');
+    }
   }
 
   @override

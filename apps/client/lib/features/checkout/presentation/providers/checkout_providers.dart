@@ -4,13 +4,35 @@ import 'package:rayssa_client/features/cart/presentation/providers/cart_provider
 import 'package:rayssa_client/features/checkout/domain/services/delivery_fee_service.dart';
 import 'package:rayssa_client/features/orders/presentation/providers/order_providers.dart';
 import 'package:rayssa_core/rayssa_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 final deliveryTypeProvider =
     StateProvider<DeliveryType>((ref) => DeliveryType.delivery);
 
+final storeDeliveryFeeProvider = StreamProvider<double>((ref) {
+  return FirebaseFirestore.instance
+      .collection('configuracoes')
+      .doc('store')
+      .snapshots()
+      .map((doc) {
+    final data = doc.data();
+    final value = data?['deliveryFee'];
+
+    if (value is num) return value.toDouble();
+
+    return DeliveryFeeService.defaultDeliveryFee;
+  });
+});
+
 final deliveryFeeProvider = Provider<double>((ref) {
   final type = ref.watch(deliveryTypeProvider);
-  return DeliveryFeeService.calculate(type);
+  final configuredFee = ref.watch(storeDeliveryFeeProvider).valueOrNull ??
+      DeliveryFeeService.defaultDeliveryFee;
+
+  return DeliveryFeeService.calculate(
+    type: type,
+    configuredFee: configuredFee,
+  );
 });
 
 final checkoutTotalProvider = Provider<double>((ref) {
