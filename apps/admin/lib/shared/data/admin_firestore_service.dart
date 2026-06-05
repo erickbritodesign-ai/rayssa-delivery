@@ -68,7 +68,7 @@ class AdminFirestoreService {
   }
 
   Stream<Map<String, dynamic>> watchStoreSettings() {
-    return _firestore.collection('settings').doc('store').snapshots().map((doc) {
+    return _firestore.collection('configuracoes').doc('store').snapshots().map((doc) {
       if (!doc.exists) {
         return {
           'storeName': 'Rayssa Delivery',
@@ -84,7 +84,7 @@ class AdminFirestoreService {
   }
 
   Future<void> saveStoreSettings(Map<String, dynamic> data) {
-    return _firestore.collection('settings').doc('store').set({
+    return _firestore.collection('configuracoes').doc('store').set({
       ...data,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
