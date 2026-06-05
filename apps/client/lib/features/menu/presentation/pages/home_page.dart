@@ -84,18 +84,31 @@ class HomePage extends ConsumerWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            trailing: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(currency.format(product.price)),
-                                IconButton(
-                                  icon: const Icon(Icons.add_circle),
-                                  onPressed: () => ref
-                                      .read(cartControllerProvider.notifier)
-                                      .addProduct(product),
-                                ),
-                              ],
-                            ),
+                            trailing: SizedBox(
+  width: 72,
+  height: 48,
+  child: Column(
+    mainAxisSize: MainAxisSize.min,
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Text(
+        currency.format(product.price),
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      SizedBox(
+        height: 24,
+        child: IconButton(
+          padding: EdgeInsets.zero,
+          iconSize: 20,
+          icon: const Icon(Icons.add_circle),
+          onPressed: () => ref
+              .read(cartControllerProvider.notifier)
+              .addProduct(product),
+        ),
+      ),
+    ],
+  ),
+),
                           ),
                         );
                       },

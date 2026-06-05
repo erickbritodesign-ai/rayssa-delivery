@@ -11,13 +11,15 @@ class MenuRemoteDatasource {
     return _firestore
         .collection(FirestoreCollections.categorias)
         .where('isActive', isEqualTo: true)
-        .orderBy('sortOrder')
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => CategoryModel.fromFirestore(doc.id, doc.data()))
-              .toList(),
-        );
+        .map((snapshot) {
+      final categories = snapshot.docs
+          .map((doc) => CategoryModel.fromFirestore(doc.id, doc.data()))
+          .toList();
+
+      categories.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      return categories;
+    });
   }
 
   Stream<List<ProductModel>> watchProducts({String? categoryId}) {
@@ -30,10 +32,13 @@ class MenuRemoteDatasource {
       query = query.where('categoryId', isEqualTo: categoryId);
     }
 
-    return query.orderBy('name').snapshots().map(
-          (snapshot) => snapshot.docs
-              .map((doc) => ProductModel.fromFirestore(doc.id, doc.data()))
-              .toList(),
-        );
+    return query.snapshots().map((snapshot) {
+      final products = snapshot.docs
+          .map((doc) => ProductModel.fromFirestore(doc.id, doc.data()))
+          .toList();
+
+      products.sort((a, b) => a.name.compareTo(b.name));
+      return products;
+    });
   }
 }
