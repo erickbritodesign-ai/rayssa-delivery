@@ -63,11 +63,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         );
 
     if (orderId != null && mounted) {
-      setState(() => _lastOrderId = orderId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pedido criado! Aguardando PIX.')),
-      );
-    }
+  context.go('/orders/$orderId');
+}
   }
 
   @override

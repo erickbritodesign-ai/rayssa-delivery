@@ -11,13 +11,20 @@ class OrderRemoteDatasource {
     return _firestore
         .collection(FirestoreCollections.pedidos)
         .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => OrderModel.fromFirestore(doc.id, doc.data()))
-              .toList(),
-        );
+        .map((snapshot) {
+      final orders = snapshot.docs
+          .map((doc) => OrderModel.fromFirestore(doc.id, doc.data()))
+          .toList();
+
+      orders.sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
+
+      return orders;
+    });
   }
 
   Stream<OrderModel?> watchOrder(String orderId) {
