@@ -89,4 +89,4 @@ class AdminFirestoreService {
 
 final adminFirestoreProvider = Provider<AdminFirestoreService>((ref) {
   return AdminFirestoreService();
-  });
+});
