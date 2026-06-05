@@ -1,0 +1,7 @@
+// Copie este arquivo para firebase_options.dart após executar:
+// dart pub global activate flutterfire_cli
+// flutterfire configure --project=SEU_PROJECT_ID
+//
+// import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+// ...
+// class DefaultFirebaseOptions { ... }

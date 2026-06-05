@@ -1,0 +1,35 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+*.iml
+.idea/
+.vscode/
+*.lock
+pubspec.lock
+
+# Firebase
+.firebase/
+**/google-services.json
+**/GoogleService-Info.plist
+**/firebase_options.dart
+!**/firebase_options.dart.example
+
+# Secrets
+.env
+.env.*
+!.env.example
+functions/.runtimeconfig.json
+**/serviceAccount*.json
+
+# Node
+node_modules/
+functions/lib/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+*.lcov

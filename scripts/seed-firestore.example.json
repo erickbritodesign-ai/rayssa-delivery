@@ -1,0 +1,17 @@
+{
+  "categorias": [
+    { "name": "Hambúrgueres", "sortOrder": 1, "isActive": true },
+    { "name": "Pizzas", "sortOrder": 2, "isActive": true },
+    { "name": "Bebidas", "sortOrder": 3, "isActive": true },
+    { "name": "Açaí", "sortOrder": 4, "isActive": true },
+    { "name": "Sobremesas", "sortOrder": 5, "isActive": true }
+  ],
+  "configuracoes": {
+    "store": {
+      "name": "Rayssa Delivery",
+      "city": "Pedro Canário",
+      "state": "ES",
+      "deliveryFeeDefault": 5.0
+    }
+  }
+}
