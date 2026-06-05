@@ -38,6 +38,10 @@ class AdminShell extends ConsumerWidget {
                 icon: Icon(Icons.receipt),
                 label: Text('Pedidos'),
               ),
+              NavigationRailDestination(
+                icon: Icon(Icons.settings),
+                label: Text('Config.'),
+              ),
             ],
             trailing: Expanded(
               child: Align(
@@ -61,6 +65,7 @@ class AdminShell extends ConsumerWidget {
     if (path.startsWith('/categories')) return 1;
     if (path.startsWith('/products')) return 2;
     if (path.startsWith('/orders')) return 3;
+    if (path.startsWith('/settings')) return 4;
     return 0;
   }
 
@@ -72,6 +77,8 @@ class AdminShell extends ConsumerWidget {
         return '/products';
       case 3:
         return '/orders';
+      case 4:
+        return '/settings';
       default:
         return '/';
     }
