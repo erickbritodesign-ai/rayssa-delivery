@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rayssa_core/rayssa_core.dart';
 
@@ -88,4 +89,4 @@ class AdminFirestoreService {
 
 final adminFirestoreProvider = Provider<AdminFirestoreService>((ref) {
   return AdminFirestoreService();
-});
+  });
