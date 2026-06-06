@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:rayssa_client/core/theme/app_theme.dart';
+import 'package:rayssa_client/core/widgets/ray_brand.dart';
 import 'package:rayssa_client/features/orders/presentation/providers/order_providers.dart';
 import 'package:rayssa_core/rayssa_core.dart';
 
@@ -63,16 +64,16 @@ class _OrderCard extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 52,
-                height: 52,
+                width: 54,
+                height: 54,
                 decoration: BoxDecoration(
-                  color: cancelled ? AppTheme.line : AppTheme.blush,
+                  color: cancelled ? AppTheme.line : AppTheme.cream,
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Icon(
                   cancelled
                       ? Icons.cancel_outlined
-                      : Icons.receipt_long_outlined,
+                      : Icons.bakery_dining,
                   color: cancelled ? AppTheme.muted : AppTheme.primaryRed,
                 ),
               ),
@@ -102,6 +103,7 @@ class _OrderCard extends StatelessWidget {
                   Text(
                     total,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: AppTheme.deepRed,
                           fontWeight: FontWeight.w900,
                         ),
                   ),
@@ -163,19 +165,7 @@ class _EmptyOrders extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 84,
-              height: 84,
-              decoration: BoxDecoration(
-                color: AppTheme.blush,
-                borderRadius: BorderRadius.circular(28),
-              ),
-              child: const Icon(
-                Icons.receipt_long_outlined,
-                color: AppTheme.primaryRed,
-                size: 36,
-              ),
-            ),
+            const RayBrandMark(size: 84),
             const SizedBox(height: 18),
             Text(
               'Nenhum pedido ainda',
@@ -184,7 +174,7 @@ class _EmptyOrders extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Quando você fizer seu primeiro pedido, o acompanhamento aparece aqui.',
+              'Quando você fizer seu primeiro pedido, o cuidado da Ray aparece aqui etapa por etapa.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),

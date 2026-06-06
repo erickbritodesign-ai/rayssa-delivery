@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rayssa_client/core/theme/app_theme.dart';
+import 'package:rayssa_client/core/widgets/ray_brand.dart';
 import 'package:rayssa_client/features/auth/presentation/providers/auth_providers.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -60,13 +61,15 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const RayBrandMark(size: 58, showWordmark: true),
+                    const SizedBox(height: 24),
                     Text(
-                      'Entre para pedir com a Rayssa',
+                      'Entre para pedir com a Ray',
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Seu cadastro ajuda a acompanhar pedidos e entregas.',
+                      'Seu cadastro ajuda a acompanhar pedidos e entregas com mais carinho.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppTheme.muted,
                           ),

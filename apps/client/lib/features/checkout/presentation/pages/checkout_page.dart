@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:rayssa_client/core/theme/app_theme.dart';
+import 'package:rayssa_client/core/widgets/ray_brand.dart';
 import 'package:rayssa_client/features/cart/presentation/providers/cart_providers.dart';
 import 'package:rayssa_client/features/checkout/presentation/providers/checkout_providers.dart';
 import 'package:rayssa_core/rayssa_core.dart';
@@ -81,16 +82,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     if (items.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Checkout')),
+        appBar: AppBar(title: const Text('Finalizar pedido')),
         body: const _EmptyCheckout(),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Checkout')),
+      appBar: AppBar(title: const Text('Finalizar pedido')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
+          const _CheckoutIntro(),
           _CheckoutSection(
             icon: Icons.delivery_dining,
             title: 'Como você quer receber?',
@@ -160,20 +162,20 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             ),
           _CheckoutSection(
             icon: Icons.edit_note,
-            title: 'Observações',
+            title: 'Observações para a Ray',
             child: TextField(
               controller: _notesController,
               minLines: 2,
               maxLines: 4,
               decoration: const InputDecoration(
-                labelText: 'Algum detalhe para a Rayssa?',
+                labelText: 'Algum detalhe do seu pedido?',
                 hintText: 'Ex.: tirar cebola, ponto da massa, troco...',
               ),
             ),
           ),
           _CheckoutSection(
             icon: Icons.receipt_long_outlined,
-            title: 'Resumo do pedido',
+            title: 'Conferência do pedido',
             child: Column(
               children: [
                 _SummaryRow(label: 'Subtotal', value: currency.format(subtotal)),
@@ -205,9 +207,40 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           ),
           const SizedBox(height: 10),
           Text(
-            'Seu pedido será enviado para acompanhamento assim que for criado.',
+            'Depois de confirmar, você acompanha cada etapa do preparo.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CheckoutIntro extends StatelessWidget {
+  const _CheckoutIntro();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.chocolate,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          const RayBrandMark(size: 48, onDark: true),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Revise com calma. A Ray só recebe seu pedido depois da confirmação.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.cream,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
           ),
         ],
       ),
@@ -241,7 +274,7 @@ class _CheckoutSection extends StatelessWidget {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: AppTheme.blush,
+                    color: AppTheme.cream,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(icon, color: AppTheme.primaryRed, size: 20),
@@ -279,7 +312,7 @@ class _SummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = emphasized
         ? Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppTheme.primaryRed,
+              color: AppTheme.deepRed,
               fontWeight: FontWeight.w900,
             )
         : Theme.of(context).textTheme.bodyMedium;
@@ -305,19 +338,7 @@ class _EmptyCheckout extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 84,
-              height: 84,
-              decoration: BoxDecoration(
-                color: AppTheme.blush,
-                borderRadius: BorderRadius.circular(28),
-              ),
-              child: const Icon(
-                Icons.receipt_long_outlined,
-                color: AppTheme.primaryRed,
-                size: 36,
-              ),
-            ),
+            const RayBrandMark(size: 84),
             const SizedBox(height: 18),
             Text(
               'Nada para finalizar ainda',

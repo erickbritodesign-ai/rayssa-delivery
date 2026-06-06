@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rayssa_client/core/theme/app_theme.dart';
+import 'package:rayssa_client/core/widgets/ray_brand.dart';
 import 'package:rayssa_client/features/auth/presentation/providers/auth_providers.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -54,27 +55,33 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Container(
-                      height: 132,
+                      padding: const EdgeInsets.all(22),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(32),
                         gradient: const LinearGradient(
-                          colors: [AppTheme.primaryRed, AppTheme.deepRed],
+                          colors: [
+                            AppTheme.chocolate,
+                            AppTheme.deepRed,
+                            AppTheme.primaryRed,
+                          ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                       ),
-                      child: const Icon(
-                        Icons.restaurant_menu,
-                        color: AppTheme.white,
-                        size: 46,
+                      child: const Center(
+                        child: RayBrandMark(
+                          size: 70,
+                          showWordmark: true,
+                          onDark: true,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 28),
                     Text(
-                      'Rayssa Delivery',
+                      'Lanchonete e Pastelaria da Ray',
                       style:
                           Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontSize: 32,
+                                fontSize: 30,
                               ),
                       textAlign: TextAlign.center,
                     ),

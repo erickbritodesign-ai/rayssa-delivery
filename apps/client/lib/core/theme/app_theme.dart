@@ -2,18 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 abstract final class AppTheme {
-  static const Color primaryRed = Color(0xFFE53935);
-  static const Color deepRed = Color(0xFFB91C1C);
-  static const Color blush = Color(0xFFFFE8E4);
-  static const Color ink = Color(0xFF1D1D1F);
-  static const Color muted = Color(0xFF6E6E73);
-  static const Color line = Color(0xFFE8E2DF);
-  static const Color cream = Color(0xFFFFFBF8);
+  static const Color primaryRed = Color(0xFF7B2E1F);
+  static const Color deepRed = Color(0xFFB6462F);
+  static const Color blush = Color(0xFFF2D8CF);
+  static const Color cream = Color(0xFFF8F3EC);
+  static const Color warmWhite = Color(0xFFFFFBF6);
+  static const Color gold = Color(0xFFD7A552);
+  static const Color caramel = Color(0xFFC7772E);
+  static const Color chocolate = Color(0xFF7B2E1F);
+  static const Color ink = Color(0xFF2B1D18);
+  static const Color muted = Color(0xFF7D6B61);
+  static const Color line = Color(0xFFEADCCB);
   static const Color black = Color(0xFF121212);
   static const Color white = Color(0xFFFFFFFF);
-  static const Color surface = Color(0xFFFFF7F3);
-  static const Color success = Color(0xFF138A4A);
-  static const Color warning = Color(0xFFFFB020);
+  static const Color surface = Color(0xFFF8F3EC);
+  static const Color success = Color(0xFF2E7D4F);
+  static const Color warning = Color(0xFFE6A12A);
 
   static ThemeData get light {
     final base = ThemeData(
@@ -32,19 +36,20 @@ abstract final class AppTheme {
 
     return base.copyWith(
       textTheme: GoogleFonts.interTextTheme(base.textTheme).copyWith(
-        headlineLarge: GoogleFonts.inter(
+        headlineLarge: GoogleFonts.playfairDisplay(
           fontWeight: FontWeight.w900,
           color: ink,
           height: 1.05,
         ),
-        headlineMedium: GoogleFonts.inter(
+        headlineMedium: GoogleFonts.playfairDisplay(
           fontWeight: FontWeight.w900,
           color: ink,
           height: 1.08,
         ),
-        titleLarge: GoogleFonts.inter(
+        titleLarge: GoogleFonts.playfairDisplay(
           fontWeight: FontWeight.w800,
           color: ink,
+          height: 1.1,
         ),
         titleMedium: GoogleFonts.inter(
           fontWeight: FontWeight.w800,
@@ -75,6 +80,7 @@ abstract final class AppTheme {
             borderRadius: BorderRadius.circular(16),
           ),
           elevation: 0,
+          shadowColor: primaryRed.withOpacity(0.18),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -157,7 +163,7 @@ abstract final class AppTheme {
         ),
       ),
       cardTheme: CardThemeData(
-        color: white,
+        color: warmWhite,
         elevation: 0,
         shadowColor: primaryRed.withOpacity(0.08),
         surfaceTintColor: Colors.transparent,

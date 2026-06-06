@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:rayssa_client/core/theme/app_theme.dart';
+import 'package:rayssa_client/core/widgets/ray_brand.dart';
 import 'package:rayssa_client/features/cart/presentation/providers/cart_providers.dart';
 import 'package:rayssa_core/rayssa_core.dart';
 
@@ -16,7 +17,7 @@ class CartPage extends ConsumerWidget {
     final currency = NumberFormat.simpleCurrency(locale: 'pt_BR');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Carrinho')),
+      appBar: AppBar(title: const Text('Sacola da Ray')),
       body: items.isEmpty
           ? const _EmptyCart()
           : Column(
@@ -80,29 +81,7 @@ class _CartItemCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppTheme.blush,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: item.product.imageUrl == null ||
-                      item.product.imageUrl!.isEmpty
-                  ? const Icon(
-                      Icons.restaurant_menu,
-                      color: AppTheme.primaryRed,
-                    )
-                  : Image.network(
-                      item.product.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(
-                        Icons.restaurant_menu,
-                        color: AppTheme.primaryRed,
-                      ),
-                    ),
-            ),
+            _CartProductVisual(product: item.product),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -139,7 +118,7 @@ class _CartItemCard extends StatelessWidget {
                       Text(
                         subtotal,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              color: AppTheme.primaryRed,
+                              color: AppTheme.deepRed,
                               fontWeight: FontWeight.w900,
                             ),
                       ),
@@ -150,6 +129,38 @@ class _CartItemCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CartProductVisual extends StatelessWidget {
+  const _CartProductVisual({required this.product});
+
+  final ProductModel product;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = product.imageUrl;
+
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return RayFoodPlaceholder(product: product, size: 72);
+    }
+
+    return Container(
+      width: 72,
+      height: 72,
+      decoration: BoxDecoration(
+        color: AppTheme.blush,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) {
+          return RayFoodPlaceholder(product: product, size: 72);
+        },
       ),
     );
   }
@@ -170,7 +181,7 @@ class _QuantityButton extends StatelessWidget {
         padding: EdgeInsets.zero,
         onPressed: onPressed,
         style: IconButton.styleFrom(
-          backgroundColor: AppTheme.blush,
+          backgroundColor: AppTheme.cream,
           foregroundColor: AppTheme.primaryRed,
         ),
         icon: Icon(icon, size: 18),
@@ -192,7 +203,7 @@ class _CartSummary extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
         decoration: const BoxDecoration(
-          color: AppTheme.white,
+          color: AppTheme.warmWhite,
           border: Border(top: BorderSide(color: AppTheme.line)),
         ),
         child: Column(
@@ -205,11 +216,25 @@ class _CartSummary extends StatelessWidget {
                 Text(subtotal, style: Theme.of(context).textTheme.titleMedium),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.verified_outlined,
+                    color: AppTheme.success, size: 16),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Confira tudo antes de enviar o pedido para a cozinha.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
             ElevatedButton.icon(
               onPressed: onCheckout,
               icon: const Icon(Icons.arrow_forward),
-              label: const Text('Continuar para pagamento'),
+              label: const Text('Finalizar com segurança'),
             ),
           ],
         ),
@@ -229,28 +254,16 @@ class _EmptyCart extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 84,
-              height: 84,
-              decoration: BoxDecoration(
-                color: AppTheme.blush,
-                borderRadius: BorderRadius.circular(28),
-              ),
-              child: const Icon(
-                Icons.shopping_bag_outlined,
-                color: AppTheme.primaryRed,
-                size: 36,
-              ),
-            ),
+            const RayBrandMark(size: 84),
             const SizedBox(height: 18),
             Text(
-              'Seu carrinho está vazio',
+              'Sua sacola está vazia',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 6),
             Text(
-              'Escolha seus favoritos no cardápio e monte um pedido especial.',
+              'Escolha seus favoritos no cardápio e monte um pedido especial da Ray.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),

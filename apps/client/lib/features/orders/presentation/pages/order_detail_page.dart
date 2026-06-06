@@ -102,7 +102,9 @@ class OrderDetailPage extends ConsumerWidget {
                     children: [
                       Text('${address.street}, ${address.number}'),
                       const SizedBox(height: 4),
-                      Text('${address.neighborhood} • ${address.city} - ${address.state}'),
+                      Text(
+                        '${address.neighborhood} • ${address.city} - ${address.state}',
+                      ),
                       if ((address.complement ?? '').isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text('Complemento: ${address.complement}'),
@@ -139,45 +141,102 @@ class _TrackingHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(28),
         gradient: LinearGradient(
           colors: cancelled
               ? [AppTheme.muted, AppTheme.ink]
-              : [AppTheme.primaryRed, AppTheme.deepRed],
+              : [AppTheme.chocolate, AppTheme.deepRed, AppTheme.primaryRed],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Text(
-            'Pedido #${order.id.substring(0, 8)}',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppTheme.white,
-                ),
+          Positioned(
+            right: -12,
+            bottom: -18,
+            child: Icon(
+              Icons.bakery_dining,
+              color: AppTheme.cream.withOpacity(0.1),
+              size: 128,
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            order.status.label,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppTheme.white,
-                  fontSize: 28,
-                ),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _HeroMeta(icon: Icons.pix, label: order.paymentStatus.label),
-              _HeroMeta(icon: Icons.delivery_dining, label: order.deliveryType.label),
-              _HeroMeta(icon: Icons.payments_outlined, label: total),
+              Text(
+                'Pedido #${order.id.substring(0, 8)}',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppTheme.cream,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _statusHeadline(order.status),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: AppTheme.warmWhite,
+                      fontSize: 28,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _statusMessage(order.status),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.cream.withOpacity(0.82),
+                    ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _HeroMeta(icon: Icons.pix, label: order.paymentStatus.label),
+                  _HeroMeta(
+                    icon: Icons.delivery_dining,
+                    label: order.deliveryType.label,
+                  ),
+                  _HeroMeta(icon: Icons.payments_outlined, label: total),
+                ],
+              ),
             ],
           ),
         ],
       ),
     );
+  }
+
+  String _statusHeadline(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.received:
+        return 'Pedido recebido';
+      case OrderStatus.confirmed:
+        return 'Pedido confirmado';
+      case OrderStatus.preparing:
+        return 'A Ray está preparando';
+      case OrderStatus.outForDelivery:
+        return 'Saiu para entrega';
+      case OrderStatus.delivered:
+        return 'Pedido entregue';
+      case OrderStatus.cancelled:
+        return 'Pedido cancelado';
+    }
+  }
+
+  String _statusMessage(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.received:
+        return 'A cozinha já recebeu seu pedido.';
+      case OrderStatus.confirmed:
+        return 'Agora é só aguardar o preparo começar.';
+      case OrderStatus.preparing:
+        return 'Seu pedido está ganhando aquele cuidado artesanal.';
+      case OrderStatus.outForDelivery:
+        return 'As delícias da Ray estão a caminho.';
+      case OrderStatus.delivered:
+        return 'Obrigada por pedir com a Lanchonete da Ray.';
+      case OrderStatus.cancelled:
+        return 'Este pedido não seguirá para preparo.';
+    }
   }
 }
 
@@ -192,18 +251,18 @@ class _HeroMeta extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.14),
+        color: AppTheme.warmWhite.withOpacity(0.14),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: AppTheme.white, size: 15),
+          Icon(icon, color: AppTheme.gold, size: 15),
           const SizedBox(width: 6),
           Text(
             label,
             style: const TextStyle(
-              color: AppTheme.white,
+              color: AppTheme.warmWhite,
               fontSize: 12,
               fontWeight: FontWeight.w800,
             ),
@@ -220,8 +279,8 @@ class _TrackingTimeline extends StatelessWidget {
   final int currentStep;
 
   static const _steps = [
-    ('Recebido', 'A Rayssa recebeu seu pedido.'),
-    ('Confirmado', 'O preparo já foi confirmado.'),
+    ('Recebido', 'A Ray recebeu seu pedido.'),
+    ('Confirmado', 'Tudo certo para começar.'),
     ('Em preparo', 'Seu pedido está sendo feito.'),
     ('Saiu para entrega', 'Está a caminho de você.'),
     ('Entregue', 'Pedido finalizado.'),
@@ -280,7 +339,7 @@ class _TimelineStep extends StatelessWidget {
               child: Icon(
                 active ? Icons.check : Icons.circle,
                 size: active ? 16 : 8,
-                color: active ? AppTheme.white : AppTheme.muted,
+                color: active ? AppTheme.warmWhite : AppTheme.muted,
               ),
             ),
             if (!last)
@@ -369,7 +428,7 @@ class _InfoCard extends StatelessWidget {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: AppTheme.blush,
+                    color: AppTheme.cream,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(icon, color: AppTheme.primaryRed, size: 20),
@@ -407,7 +466,7 @@ class _ItemRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = emphasized
         ? Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppTheme.primaryRed,
+              color: AppTheme.deepRed,
               fontWeight: FontWeight.w900,
             )
         : Theme.of(context).textTheme.bodyMedium;

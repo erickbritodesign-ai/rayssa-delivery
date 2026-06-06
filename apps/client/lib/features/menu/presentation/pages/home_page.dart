@@ -2,19 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:rayssa_client/core/branding/ray_photos.dart';
 import 'package:rayssa_client/core/theme/app_theme.dart';
+import 'package:rayssa_client/core/widgets/ray_brand.dart';
 import 'package:rayssa_client/features/cart/presentation/providers/cart_providers.dart';
 import 'package:rayssa_client/features/menu/presentation/providers/menu_providers.dart';
 import 'package:rayssa_core/rayssa_core.dart';
+
+const _secondaryRay = Color(0xFFB6462F);
+
+const _catalog = [
+  _CatalogItem('Pastéis', 'pastel'),
+  _CatalogItem('Pizzas', 'pizza'),
+  _CatalogItem('Panquecas', 'panqueca'),
+  _CatalogItem('Doces', 'doce brigadeiro sobremesa'),
+  _CatalogItem('Bebidas', 'refrigerante refri'),
+  _CatalogItem('Caldo de Cana', 'caldo cana'),
+];
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final categoriesAsync = ref.watch(categoriesProvider);
     final productsAsync = ref.watch(productsProvider);
-    final selectedCategoryId = ref.watch(selectedCategoryIdProvider);
     final cartCount = ref.watch(cartItemCountProvider);
     final currency = NumberFormat.simpleCurrency(locale: 'pt_BR');
 
@@ -24,7 +35,7 @@ class HomePage extends ConsumerWidget {
           SliverAppBar(
             pinned: true,
             titleSpacing: 20,
-            title: const Text('Rayssa Delivery'),
+            title: const RayBrandMark(size: 36, showWordmark: true),
             actions: [
               IconButton(
                 tooltip: 'Meus pedidos',
@@ -34,7 +45,7 @@ class HomePage extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.only(right: 10),
                 child: IconButton(
-                  tooltip: 'Carrinho',
+                  tooltip: 'Sacola',
                   icon: Badge(
                     label: Text('$cartCount'),
                     isLabelVisible: cartCount > 0,
@@ -45,66 +56,50 @@ class HomePage extends ConsumerWidget {
               ),
             ],
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-              child: _HeroBanner(cartCount: cartCount),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 18)),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: _PromoStrip(),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
-              child: _SectionHeader(
-                title: 'Categorias',
-                subtitle: 'Escolha seu desejo de hoje',
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 48,
-              child: categoriesAsync.when(
-                data: (categories) => ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  children: [
-                    _CategoryChip(
-                      label: 'Todos',
-                      selected: selectedCategoryId == null,
-                      onTap: () =>
-                          ref.read(selectedCategoryIdProvider.notifier).state =
-                              null,
-                    ),
-                    ...categories.map(
-                      (category) => _CategoryChip(
-                        label: category.name,
-                        selected: selectedCategoryId == category.id,
-                        onTap: () => ref
-                            .read(selectedCategoryIdProvider.notifier)
-                            .state = category.id,
-                      ),
-                    ),
-                  ],
+          productsAsync.when(
+            data: (_) => SliverList(
+              delegate: SliverChildListDelegate.fixed([
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                  child: const _HeroPhoto(),
                 ),
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => _InlineMessage(message: 'Erro: $e'),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 24, 20, 10),
+                  child: _SectionHeader(
+                    title: 'Lanchonete e Pastelaria da Ray',
+                    subtitle: 'Feito com carinho em Pedro Canário.',
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _StorySection(photo: RayPhotos.rayStory),
+                ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 24, 20, 10),
+                  child: _SectionHeader(
+                    title: 'Cardápio da Ray',
+                    subtitle: 'O catálogo real da lanchonete.',
+                  ),
+                ),
+                const _CatalogStrip(),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 24, 20, 10),
+                  child: _SectionHeader(
+                    title: 'Hoje saindo da cozinha da Ray',
+                    subtitle: 'Produtos disponíveis para pedir pelo app.',
+                  ),
+                ),
+              ]),
+            ),
+            loading: () => const SliverToBoxAdapter(
+              child: SizedBox(
+                height: 420,
+                child: Center(child: CircularProgressIndicator()),
               ),
             ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
-              child: _SectionHeader(
-                title: 'Cardápio',
-                subtitle: 'Feito com carinho pela Rayssa',
-              ),
+            error: (e, _) => SliverFillRemaining(
+              hasScrollBody: false,
+              child: _InlineMessage(message: 'Erro: $e'),
             ),
           ),
           productsAsync.when(
@@ -116,15 +111,17 @@ class HomePage extends ConsumerWidget {
                 );
               }
 
+              final sortedProducts = _prioritizedProducts(products);
+
               return SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverList.separated(
-                  itemCount: products.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemCount: sortedProducts.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 16),
                   itemBuilder: (context, index) {
-                    final product = products[index];
+                    final product = sortedProducts[index];
 
-                    return _ProductCard(
+                    return _PhotoProductCard(
                       product: product,
                       price: currency.format(product.price),
                       onAdd: () => ref
@@ -135,9 +132,7 @@ class HomePage extends ConsumerWidget {
                 ),
               );
             },
-            loading: () => const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator()),
-            ),
+            loading: () => const SliverToBoxAdapter(),
             error: (e, _) => SliverFillRemaining(
               hasScrollBody: false,
               child: _InlineMessage(message: 'Erro: $e'),
@@ -150,136 +145,144 @@ class HomePage extends ConsumerWidget {
           ? FloatingActionButton.extended(
               onPressed: () => context.push('/cart'),
               icon: const Icon(Icons.shopping_bag_outlined),
-              label: Text('Ver carrinho ($cartCount)'),
+              label: Text('Sacola ($cartCount)'),
             )
           : null,
     );
   }
 }
 
-class _HeroBanner extends StatelessWidget {
-  const _HeroBanner({required this.cartCount});
+List<ProductModel> _prioritizedProducts(List<ProductModel> products) {
+  final sorted = [...products];
+  sorted.sort((a, b) => _catalogPriority(a).compareTo(_catalogPriority(b)));
+  return sorted;
+}
 
-  final int cartCount;
+int _catalogPriority(ProductModel product) {
+  final text = normalizedCatalogText('${product.name} ${product.description}');
+  const order = [
+    'pastel',
+    'pizza',
+    'panqueca',
+    'doce',
+    'bolo',
+    'refrigerante',
+    'refri',
+    'caldo',
+    'lasanha',
+  ];
+
+  for (var index = 0; index < order.length; index++) {
+    if (text.contains(order[index])) return index;
+  }
+  return order.length;
+}
+
+class _HeroPhoto extends StatelessWidget {
+  const _HeroPhoto();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 230),
-      padding: const EdgeInsets.all(22),
+      height: 286,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(
-          colors: [AppTheme.primaryRed, AppTheme.deepRed],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppTheme.chocolate,
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryRed.withOpacity(0.22),
-            blurRadius: 26,
-            offset: const Offset(0, 16),
+            color: AppTheme.chocolate.withOpacity(0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
           ),
         ],
       ),
+      clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          Positioned(
-            right: -16,
-            bottom: -20,
-            child: Icon(
-              Icons.local_pizza_rounded,
-              size: 158,
-              color: Colors.white.withOpacity(0.12),
+          Positioned.fill(
+            child: _PhotoSurface(
+              photo: RayPhotos.facadeHero,
+              dark: true,
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.16),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.18),
-                  ),
-                ),
-                child: const Text(
-                  'Aberto para pedidos',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.ink.withOpacity(0.74),
+                    AppTheme.ink.withOpacity(0.18),
+                  ],
+                  begin: Alignment.bottomLeft,
+                  end: Alignment.topRight,
                 ),
               ),
-              const SizedBox(height: 18),
-              Text(
-                'Pastéis, lanches e carinho em cada pedido.',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Colors.white,
-                      fontSize: 30,
-                    ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Do balcão da Rayssa direto para a sua casa em Pedro Canário.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withOpacity(0.86),
-                    ),
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  const _HeroBadge(icon: Icons.bolt, label: 'Entrega rápida'),
-                  const _HeroBadge(icon: Icons.favorite, label: 'Feito na hora'),
-                  _HeroBadge(
-                    icon: Icons.shopping_bag,
-                    label: cartCount == 0
-                        ? 'Carrinho livre'
-                        : '$cartCount no carrinho',
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroBadge extends StatelessWidget {
-  const _HeroBadge({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.14),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 15),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.gold.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: AppTheme.gold.withOpacity(0.28)),
+                  ),
+                  child: const Text(
+                    'Delivery artesanal',
+                    style: TextStyle(
+                      color: AppTheme.warmWhite,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Lanchonete e Pastelaria da Ray',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: AppTheme.warmWhite,
+                        fontSize: 30,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Feito com carinho em Pedro Canário.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.cream,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () {
+                    Scrollable.of(context).position.animateTo(
+                          560,
+                          duration: const Duration(milliseconds: 420),
+                          curve: Curves.easeOutCubic,
+                        );
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.warmWhite,
+                    foregroundColor: AppTheme.primaryRed,
+                    minimumSize: const Size(136, 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  child: const Text('Ver Cardápio'),
+                ),
+              ],
             ),
           ),
         ],
@@ -288,88 +291,306 @@ class _HeroBadge extends StatelessWidget {
   }
 }
 
-class _PromoStrip extends StatelessWidget {
-  const _PromoStrip();
+class _StorySection extends StatelessWidget {
+  const _StorySection({required this.photo});
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(
-          child: _PromoCard(
-            icon: Icons.local_offer_outlined,
-            title: 'Promo do dia',
-            subtitle: 'Combos especiais',
-          ),
-        ),
-        SizedBox(width: 12),
-        Expanded(
-          child: _PromoCard(
-            icon: Icons.pix,
-            title: 'PIX fácil',
-            subtitle: 'Pedido sem atrito',
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PromoCard extends StatelessWidget {
-  const _PromoCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
+  final RayPhoto photo;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(20),
+        color: AppTheme.warmWhite,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppTheme.line),
       ),
       child: Row(
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppTheme.blush,
-              borderRadius: BorderRadius.circular(14),
+          SizedBox(
+            width: 96,
+            height: 116,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: _PhotoSurface(
+                photo: photo,
+              ),
             ),
-            child: Icon(icon, color: AppTheme.primaryRed, size: 20),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
+                  'Nossa história',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontSize: 22,
                       ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 6),
                 Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
+                  'O sonho da Ray começou muito antes da inauguração. Hoje cada pastel, pizza, doce e refeição é preparado com o mesmo carinho do primeiro dia.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.muted,
+                      ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CatalogStrip extends StatelessWidget {
+  const _CatalogStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 138,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: _catalog.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final item = _catalog[index];
+
+          return _CatalogPhotoCard(
+            title: item.title,
+            photo: RayPhotos.catalogForKey(item.key),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CatalogPhotoCard extends StatelessWidget {
+  const _CatalogPhotoCard({required this.title, required this.photo});
+
+  final String title;
+  final RayPhoto photo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 126,
+      decoration: BoxDecoration(
+        color: AppTheme.warmWhite,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: _PhotoSurface(
+              photo: photo,
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    AppTheme.ink.withOpacity(0.62),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 10,
+            right: 10,
+            bottom: 10,
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: AppTheme.warmWhite,
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhotoProductCard extends StatelessWidget {
+  const _PhotoProductCard({
+    required this.product,
+    required this.price,
+    required this.onAdd,
+  });
+
+  final ProductModel product;
+  final String price;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final available = product.isAvailable && product.isActive;
+    final fallbackPhoto = RayPhotos.fallbackForProduct(product);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.warmWhite,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: AppTheme.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 184,
+            width: double.infinity,
+            child: _PhotoSurface(
+              imageUrl: product.imageUrl,
+              photo: fallbackPhoto,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        product.description.isEmpty
+                            ? 'Preparado com carinho na cozinha da Ray.'
+                            : product.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        price,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: _secondaryRay,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: IconButton.filled(
+                    tooltip: 'Adicionar',
+                    onPressed: available ? onAdd : null,
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppTheme.primaryRed,
+                      foregroundColor: AppTheme.warmWhite,
+                      disabledBackgroundColor: AppTheme.line,
+                      disabledForegroundColor: AppTheme.muted,
+                    ),
+                    icon: const Icon(Icons.add),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhotoSurface extends StatelessWidget {
+  const _PhotoSurface({
+    this.imageUrl,
+    this.photo,
+    this.dark = false,
+  });
+
+  final String? imageUrl;
+  final RayPhoto? photo;
+  final bool dark;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl ?? photo?.url;
+
+    if (url != null && url.isNotEmpty) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _LocalPhotoOrEmpty(
+          assetPath: photo?.assetPath,
+          dark: dark,
+        ),
+      );
+    }
+
+    return _LocalPhotoOrEmpty(assetPath: photo?.assetPath, dark: dark);
+  }
+}
+
+class _LocalPhotoOrEmpty extends StatelessWidget {
+  const _LocalPhotoOrEmpty({required this.assetPath, required this.dark});
+
+  final String? assetPath;
+  final bool dark;
+
+  @override
+  Widget build(BuildContext context) {
+    final path = assetPath;
+    if (path != null && path.isNotEmpty) {
+      return Image.asset(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _PhotoEmpty(dark: dark),
+      );
+    }
+
+    return _PhotoEmpty(dark: dark);
+  }
+}
+
+class _PhotoEmpty extends StatelessWidget {
+  const _PhotoEmpty({required this.dark});
+
+  final bool dark;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: dark
+              ? [AppTheme.primaryRed, AppTheme.ink]
+              : [AppTheme.cream, AppTheme.blush],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
     );
   }
@@ -383,195 +604,18 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 3),
-              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-            ],
-          ),
+        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 3),
+        Text(
+          subtitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
-    );
-  }
-}
-
-class _ProductCard extends StatelessWidget {
-  const _ProductCard({
-    required this.product,
-    required this.price,
-    required this.onAdd,
-  });
-
-  final ProductModel product;
-  final String price;
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    final available = product.isAvailable && product.isActive;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            _ProductImage(product: product),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          product.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                        ),
-                      ),
-                      if (!available)
-                        const _StatusPill(label: 'Indisponível'),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    product.description.isEmpty
-                        ? 'Uma delícia feita pela Rayssa.'
-                        : product.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          price,
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: AppTheme.primaryRed,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                        ),
-                      ),
-                      IconButton.filled(
-                        tooltip: 'Adicionar',
-                        onPressed: available ? onAdd : null,
-                        style: IconButton.styleFrom(
-                          backgroundColor: AppTheme.primaryRed,
-                          foregroundColor: AppTheme.white,
-                          disabledBackgroundColor: AppTheme.line,
-                          disabledForegroundColor: AppTheme.muted,
-                        ),
-                        icon: const Icon(Icons.add),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProductImage extends StatelessWidget {
-  const _ProductImage({required this.product});
-
-  final ProductModel product;
-
-  @override
-  Widget build(BuildContext context) {
-    final imageUrl = product.imageUrl;
-
-    return Container(
-      width: 92,
-      height: 104,
-      decoration: BoxDecoration(
-        color: AppTheme.blush,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: imageUrl == null || imageUrl.isEmpty
-          ? const Icon(
-              Icons.restaurant_menu,
-              color: AppTheme.primaryRed,
-              size: 34,
-            )
-          : Image.network(
-              imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.restaurant_menu,
-                color: AppTheme.primaryRed,
-                size: 34,
-              ),
-            ),
-    );
-  }
-}
-
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) => onTap(),
-        avatar: selected
-            ? const Icon(Icons.check, size: 16, color: AppTheme.white)
-            : null,
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppTheme.line,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppTheme.muted,
-              fontWeight: FontWeight.w800,
-            ),
-      ),
     );
   }
 }
@@ -586,28 +630,16 @@ class _EmptyMenuState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 78,
-            height: 78,
-            decoration: BoxDecoration(
-              color: AppTheme.blush,
-              borderRadius: BorderRadius.circular(26),
-            ),
-            child: const Icon(
-              Icons.room_service_outlined,
-              color: AppTheme.primaryRed,
-              size: 34,
-            ),
-          ),
+          const RayBrandMark(size: 82),
           const SizedBox(height: 18),
           Text(
-            'Nenhum produto disponível',
+            'Cardápio em preparo',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium,
+            style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 6),
           Text(
-            'Assim que a Rayssa ativar o cardápio, as delícias aparecem aqui.',
+            'Assim que a Ray ativar as fotos e produtos do dia, eles aparecem aqui.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
@@ -635,4 +667,11 @@ class _InlineMessage extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CatalogItem {
+  const _CatalogItem(this.title, this.key);
+
+  final String title;
+  final String key;
 }
