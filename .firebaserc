@@ -1,5 +1,18 @@
 {
   "projects": {
-    "default": "rayssa-delivery-dev"
-  }
+    "default": "rayssa-delivery"
+  },
+  "targets": {
+    "rayssa-delivery": {
+      "hosting": {
+        "client": [
+          "rayssa-delivery"
+        ],
+        "admin": [
+          "rayssa-delivery-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
