@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:rayssa_client/core/theme/app_theme.dart';
 import 'package:rayssa_client/features/cart/presentation/providers/cart_providers.dart';
 import 'package:rayssa_client/features/checkout/presentation/providers/checkout_providers.dart';
-import 'package:rayssa_client/features/checkout/presentation/widgets/pix_payment_stub.dart';
 import 'package:rayssa_core/rayssa_core.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
@@ -20,7 +20,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _neighborhoodController = TextEditingController();
   final _complementController = TextEditingController();
   final _notesController = TextEditingController();
-  String? _lastOrderId;
 
   @override
   void dispose() {
@@ -72,6 +71,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
+    final items = ref.watch(cartControllerProvider);
     final subtotal = ref.watch(cartSubtotalProvider);
     final deliveryFee = ref.watch(deliveryFeeProvider);
     final total = ref.watch(checkoutTotalProvider);
@@ -79,21 +79,31 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final checkoutState = ref.watch(checkoutControllerProvider);
     final currency = NumberFormat.simpleCurrency(locale: 'pt_BR');
 
+    if (items.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Checkout')),
+        body: const _EmptyCheckout(),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SegmentedButton<DeliveryType>(
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        children: [
+          _CheckoutSection(
+            icon: Icons.delivery_dining,
+            title: 'Como você quer receber?',
+            child: SegmentedButton<DeliveryType>(
               segments: const [
                 ButtonSegment(
                   value: DeliveryType.delivery,
+                  icon: Icon(Icons.delivery_dining),
                   label: Text('Entrega'),
                 ),
                 ButtonSegment(
                   value: DeliveryType.pickup,
+                  icon: Icon(Icons.storefront),
                   label: Text('Retirada'),
                 ),
               ],
@@ -101,56 +111,230 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               onSelectionChanged: (value) =>
                   ref.read(deliveryTypeProvider.notifier).state = value.first,
             ),
-            if (deliveryType == DeliveryType.delivery) ...[
-              const SizedBox(height: 16),
-              TextField(
-                controller: _streetController,
-                decoration: const InputDecoration(labelText: 'Rua'),
+          ),
+          if (deliveryType == DeliveryType.delivery)
+            _CheckoutSection(
+              icon: Icons.location_on_outlined,
+              title: 'Endereço de entrega',
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _streetController,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(labelText: 'Rua'),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _numberController,
+                          textInputAction: TextInputAction.next,
+                          keyboardType: TextInputType.number,
+                          decoration:
+                              const InputDecoration(labelText: 'Número'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: _neighborhoodController,
+                          textInputAction: TextInputAction.next,
+                          decoration:
+                              const InputDecoration(labelText: 'Bairro'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _complementController,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Complemento',
+                      hintText: 'Casa, referência, apartamento...',
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _numberController,
-                decoration: const InputDecoration(labelText: 'Número'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _neighborhoodController,
-                decoration: const InputDecoration(labelText: 'Bairro'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _complementController,
-                decoration: const InputDecoration(labelText: 'Complemento'),
-              ),
-            ],
-            const SizedBox(height: 8),
-            TextField(
+            ),
+          _CheckoutSection(
+            icon: Icons.edit_note,
+            title: 'Observações',
+            child: TextField(
               controller: _notesController,
-              decoration: const InputDecoration(labelText: 'Observações'),
-            ),
-            const SizedBox(height: 16),
-            Text('Subtotal: ${currency.format(subtotal)}'),
-            Text('Taxa de entrega: ${currency.format(deliveryFee)}'),
-            Text(
-              'Total: ${currency.format(total)}',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: checkoutState.isLoading ? null : _submit,
-              child: checkoutState.isLoading
-                  ? const CircularProgressIndicator()
-                  : const Text('Confirmar pedido (PIX)'),
-            ),
-            if (_lastOrderId != null) ...[
-              const SizedBox(height: 24),
-              PixPaymentStub(orderId: _lastOrderId!),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: () => context.go('/orders/$_lastOrderId'),
-                child: const Text('Acompanhar pedido'),
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Algum detalhe para a Rayssa?',
+                hintText: 'Ex.: tirar cebola, ponto da massa, troco...',
               ),
-            ],
+            ),
+          ),
+          _CheckoutSection(
+            icon: Icons.receipt_long_outlined,
+            title: 'Resumo do pedido',
+            child: Column(
+              children: [
+                _SummaryRow(label: 'Subtotal', value: currency.format(subtotal)),
+                const SizedBox(height: 8),
+                _SummaryRow(
+                  label: 'Taxa de entrega',
+                  value: currency.format(deliveryFee),
+                ),
+                const Divider(),
+                _SummaryRow(
+                  label: 'Total',
+                  value: currency.format(total),
+                  emphasized: true,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          ElevatedButton.icon(
+            onPressed: checkoutState.isLoading ? null : _submit,
+            icon: checkoutState.isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.pix),
+            label: const Text('Confirmar pedido com PIX'),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Seu pedido será enviado para acompanhamento assim que for criado.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CheckoutSection extends StatelessWidget {
+  const _CheckoutSection({
+    required this.icon,
+    required this.title,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppTheme.blush,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: AppTheme.primaryRed, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = emphasized
+        ? Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: AppTheme.primaryRed,
+              fontWeight: FontWeight.w900,
+            )
+        : Theme.of(context).textTheme.bodyMedium;
+
+    return Row(
+      children: [
+        Text(label, style: style),
+        const Spacer(),
+        Text(value, style: style),
+      ],
+    );
+  }
+}
+
+class _EmptyCheckout extends StatelessWidget {
+  const _EmptyCheckout();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                color: AppTheme.blush,
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: const Icon(
+                Icons.receipt_long_outlined,
+                color: AppTheme.primaryRed,
+                size: 36,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Nada para finalizar ainda',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Volte ao cardápio e escolha algo gostoso antes de pagar.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => context.go('/'),
+              child: const Text('Ver cardápio'),
+            ),
           ],
         ),
       ),

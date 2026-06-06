@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rayssa_client/core/theme/app_theme.dart';
 import 'package:rayssa_client/features/auth/presentation/providers/auth_providers.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -49,54 +50,91 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Criar conta')),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Nome'),
-                  validator: (v) => v == null || v.isEmpty ? 'Obrigatório' : null,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Entre para pedir com a Rayssa',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Seu cadastro ajuda a acompanhar pedidos e entregas.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.muted,
+                          ),
+                    ),
+                    const SizedBox(height: 24),
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Obrigatório' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: const InputDecoration(
+                        labelText: 'Telefone',
+                        prefixIcon: Icon(Icons.phone_outlined),
+                      ),
+                      keyboardType: TextInputType.phone,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Obrigatório' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: const InputDecoration(
+                        labelText: 'E-mail',
+                        prefixIcon: Icon(Icons.mail_outline),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (v) => v == null || !v.contains('@')
+                          ? 'E-mail inválido'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: const InputDecoration(
+                        labelText: 'Senha',
+                        prefixIcon: Icon(Icons.lock_outline),
+                      ),
+                      obscureText: true,
+                      validator: (v) => v == null || v.length < 6
+                          ? 'Mínimo 6 caracteres'
+                          : null,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: authState.isLoading ? null : _submit,
+                      child: authState.isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Cadastrar'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => context.pop(),
+                      child: const Text('Já tenho conta'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _phoneController,
-                  decoration: const InputDecoration(labelText: 'Telefone'),
-                  keyboardType: TextInputType.phone,
-                  validator: (v) => v == null || v.isEmpty ? 'Obrigatório' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(labelText: 'E-mail'),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (v) => v == null || !v.contains('@') ? 'E-mail inválido' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(labelText: 'Senha'),
-                  obscureText: true,
-                  validator: (v) =>
-                      v == null || v.length < 6 ? 'Mínimo 6 caracteres' : null,
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: authState.isLoading ? null : _submit,
-                    child: authState.isLoading
-                        ? const CircularProgressIndicator()
-                        : const Text('Cadastrar'),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => context.pop(),
-                  child: const Text('Já tenho conta'),
-                ),
-              ],
+              ),
             ),
           ),
         ),
