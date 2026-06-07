@@ -26,6 +26,9 @@ class OrderModel extends Equatable {
     this.tableSessionId,
     this.dineInStatus,
     this.mercadoPagoPaymentId,
+    this.loyaltyPointsAwarded = false,
+    this.loyaltyPoints = 0,
+    this.loyaltyAwardedAt,
     this.createdAt,
     this.updatedAt,
   });
@@ -48,6 +51,9 @@ class OrderModel extends Equatable {
   final String? tableSessionId;
   final String? dineInStatus;
   final String? mercadoPagoPaymentId;
+  final bool loyaltyPointsAwarded;
+  final int loyaltyPoints;
+  final DateTime? loyaltyAwardedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -78,6 +84,9 @@ class OrderModel extends Equatable {
       tableSessionId: data['tableSessionId'] as String?,
       dineInStatus: data['dineInStatus'] as String?,
       mercadoPagoPaymentId: data['mercadoPagoPaymentId'] as String?,
+      loyaltyPointsAwarded: data['loyaltyPointsAwarded'] == true,
+      loyaltyPoints: (data['loyaltyPoints'] as num?)?.toInt() ?? 0,
+      loyaltyAwardedAt: _timestampToDate(data['loyaltyAwardedAt']),
       createdAt: _timestampToDate(data['createdAt']),
       updatedAt: _timestampToDate(data['updatedAt']),
     );
@@ -104,6 +113,9 @@ class OrderModel extends Equatable {
       'tableSessionId': tableSessionId,
       'dineInStatus': dineInStatus,
       'mercadoPagoPaymentId': mercadoPagoPaymentId,
+      'loyaltyPointsAwarded': loyaltyPointsAwarded,
+      'loyaltyPoints': loyaltyPoints,
+      'loyaltyAwardedAt': loyaltyAwardedAt,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };
@@ -129,6 +141,9 @@ class OrderModel extends Equatable {
     tableSessionId,
     dineInStatus,
     mercadoPagoPaymentId,
+    loyaltyPointsAwarded,
+    loyaltyPoints,
+    loyaltyAwardedAt,
     createdAt,
     updatedAt,
   ];

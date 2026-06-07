@@ -121,6 +121,11 @@ class OrderDetailPage extends ConsumerWidget {
                   ],
                 ),
               ),
+              if (_showsLoyaltyFor(order))
+                _LoyaltyOrderCard(
+                  order: order,
+                  points: _loyaltyPointsFor(order),
+                ),
               if (address != null)
                 _InfoCard(
                   icon: Icons.location_on_outlined,
@@ -566,6 +571,75 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
+class _LoyaltyOrderCard extends StatelessWidget {
+  const _LoyaltyOrderCard({
+    required this.order,
+    required this.points,
+  });
+
+  final OrderModel order;
+  final int points;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final awarded = order.loyaltyPointsAwarded;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: colors.secondary.withOpacity(0.16),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                awarded
+                    ? Icons.workspace_premium
+                    : Icons.workspace_premium_outlined,
+                color: colors.secondary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Fidelidade da Ray',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    awarded
+                        ? 'Você ganhou $points pontos neste pedido.'
+                        : 'Você ganhará $points pontos quando o pedido for concluído.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: colors.onSurface,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Pontos calculados sobre os produtos, sem taxa de entrega.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ItemRow extends StatelessWidget {
   const _ItemRow({
     required this.label,
@@ -595,4 +669,25 @@ class _ItemRow extends StatelessWidget {
       ],
     );
   }
+}
+
+bool _showsLoyaltyFor(OrderModel order) {
+  if (order.status == OrderStatus.cancelled) return false;
+  return order.deliveryType == DeliveryType.delivery ||
+      order.deliveryType == DeliveryType.pickup;
+}
+
+int _loyaltyPointsFor(OrderModel order) {
+  if (order.loyaltyPoints > 0) {
+    return order.loyaltyPoints;
+  }
+
+  final productValue = order.subtotal > 0
+      ? order.subtotal
+      : order.items.fold<double>(
+          0,
+          (sum, item) => sum + item.subtotal,
+        );
+  final points = productValue.floor();
+  return points > 0 ? points : 0;
 }

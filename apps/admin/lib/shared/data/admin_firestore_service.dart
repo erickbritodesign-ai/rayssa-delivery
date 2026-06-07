@@ -66,14 +66,65 @@ class AdminFirestoreService {
             .toList());
   }
 
-  Future<void> updateOrderStatus(String orderId, OrderStatus status) {
-    return _firestore
-        .collection(FirestoreCollections.pedidos)
-        .doc(orderId)
-        .update({
-      'status': status.value,
-      'updatedAt': FieldValue.serverTimestamp(),
+  Future<int> updateOrderStatus(String orderId, OrderStatus status) async {
+    var awardedPoints = 0;
+    final orderRef =
+        _firestore.collection(FirestoreCollections.pedidos).doc(orderId);
+
+    await _firestore.runTransaction((transaction) async {
+      final orderSnapshot = await transaction.get(orderRef);
+      if (!orderSnapshot.exists) return;
+
+      final order = OrderModel.fromFirestore(
+        orderSnapshot.id,
+        orderSnapshot.data() ?? <String, dynamic>{},
+      );
+      final updates = <String, dynamic>{
+        'status': status.value,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      final points = _loyaltyPointsForStatus(order, status);
+
+      if (points > 0) {
+        awardedPoints = points;
+        final userRef = _firestore
+            .collection(FirestoreCollections.usuarios)
+            .doc(order.userId);
+
+        transaction.set(
+          userRef,
+          {
+            'loyaltyPoints': FieldValue.increment(points),
+            'lifetimeLoyaltyPoints': FieldValue.increment(points),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+
+        updates.addAll({
+          'loyaltyPointsAwarded': true,
+          'loyaltyPoints': points,
+          'loyaltyAwardedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      transaction.update(orderRef, updates);
     });
+
+    return awardedPoints;
+  }
+
+  int _loyaltyPointsForStatus(OrderModel order, OrderStatus nextStatus) {
+    if (nextStatus != OrderStatus.delivered) return 0;
+    if (order.status == OrderStatus.cancelled) return 0;
+    if (order.loyaltyPointsAwarded) return 0;
+    if (order.userId.trim().isEmpty) return 0;
+
+    final isEligibleType = order.deliveryType == DeliveryType.delivery ||
+        order.deliveryType == DeliveryType.pickup;
+    if (!isEligibleType) return 0;
+
+    return calculateLoyaltyPointsFromProducts(order);
   }
 
   Stream<List<TableModel>> watchTables() {
@@ -233,3 +284,14 @@ class AdminFirestoreService {
 final adminFirestoreProvider = Provider<AdminFirestoreService>((ref) {
   return AdminFirestoreService();
 });
+
+int calculateLoyaltyPointsFromProducts(OrderModel order) {
+  final productValue = order.subtotal > 0
+      ? order.subtotal
+      : order.items.fold<double>(
+          0,
+          (sum, item) => sum + item.subtotal,
+        );
+  final points = productValue.floor();
+  return points > 0 ? points : 0;
+}

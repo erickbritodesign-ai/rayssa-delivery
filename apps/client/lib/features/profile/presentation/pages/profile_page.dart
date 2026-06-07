@@ -44,7 +44,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               const SizedBox(height: 14),
               const _ThemeModeCard(),
               const SizedBox(height: 14),
-              _LoyaltyCard(points: user.loyaltyPoints),
+              _RayLoyaltyCard(
+                points: user.loyaltyPoints,
+                onRefresh: () => _refreshLoyaltyPoints(context),
+              ),
               if (user.canAccessTableService) ...[
                 const SizedBox(height: 14),
                 _ServiceModeCard(onTap: () => context.push('/tables')),
@@ -89,6 +92,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         const SnackBar(content: Text('Acesso restrito a funcionários.')),
       );
     });
+  }
+
+  void _refreshLoyaltyPoints(BuildContext context) {
+    ref.invalidate(currentUserProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Pontos atualizados.')),
+    );
   }
 }
 
@@ -245,8 +255,249 @@ class _ServiceModeCard extends StatelessWidget {
   }
 }
 
-class _LoyaltyCard extends StatelessWidget {
-  const _LoyaltyCard({required this.points});
+class _RayLoyaltyCard extends StatelessWidget {
+  const _RayLoyaltyCard({
+    required this.points,
+    required this.onRefresh,
+  });
+
+  final int points;
+  final VoidCallback onRefresh;
+
+  static const _rewards = [
+    _RayReward(
+      points: 50,
+      title: '50 pontos',
+      benefit: 'R\$ 3,00 de desconto ou brinde definido pela Ray',
+    ),
+    _RayReward(
+      points: 100,
+      title: '100 pontos',
+      benefit: 'R\$ 5,00 de desconto no próximo pedido',
+    ),
+    _RayReward(
+      points: 150,
+      title: '150 pontos',
+      benefit: 'Salgado simples grátis',
+    ),
+    _RayReward(
+      points: 200,
+      title: '200 pontos',
+      benefit: 'R\$ 10,00 de desconto',
+    ),
+    _RayReward(
+      points: 300,
+      title: '300 pontos',
+      benefit: 'Pastel selecionado grátis',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final accent = dark ? colors.secondary : AppTheme.deepRed;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: dark ? AppTheme.darkCardSoft : AppTheme.cream,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    Icons.workspace_premium_outlined,
+                    color: colors.secondary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Fidelidade da Ray',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Válido para Delivery e Retirada.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '$points pts',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: accent,
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    TextButton.icon(
+                      onPressed: onRefresh,
+                      icon: const Icon(Icons.refresh, size: 15),
+                      label: const Text('Atualizar'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: accent,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Você tem $points pontos.',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: colors.onSurface,
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'A cada R\$ 1,00 em pedidos pelo app, você ganha 1 ponto.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 14),
+            for (final reward in _rewards) ...[
+              _RayRewardTile(points: points, reward: reward),
+              if (reward != _rewards.last) const SizedBox(height: 8),
+            ],
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: dark ? AppTheme.darkCardSoft : AppTheme.cream,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colors.outlineVariant),
+              ),
+              child: Text(
+                'Resgate em breve pelo app. Benefícios serão confirmados pela Ray.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurface.withOpacity(0.76),
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RayReward {
+  const _RayReward({
+    required this.points,
+    required this.title,
+    required this.benefit,
+  });
+
+  final int points;
+  final String title;
+  final String benefit;
+}
+
+class _RayRewardTile extends StatelessWidget {
+  const _RayRewardTile({required this.points, required this.reward});
+
+  final int points;
+  final _RayReward reward;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final available = points >= reward.points;
+    final missing = reward.points - points;
+    final accent = dark ? colors.secondary : AppTheme.deepRed;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: available
+            ? (dark ? AppTheme.darkCardSoft : AppTheme.blush)
+            : colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: available ? accent.withOpacity(0.42) : colors.outlineVariant,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: available ? accent : colors.outlineVariant,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              available ? Icons.check : Icons.lock_outline,
+              color: available
+                  ? (dark ? AppTheme.ink : AppTheme.warmWhite)
+                  : colors.onSurface.withOpacity(0.6),
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  reward.title,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: colors.onSurface,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  reward.benefit,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            available ? 'Disponível' : 'Faltam $missing',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: available ? accent : colors.onSurface.withOpacity(0.7),
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class LegacyLoyaltyCard extends StatelessWidget {
+  const LegacyLoyaltyCard({required this.points});
 
   final int points;
 

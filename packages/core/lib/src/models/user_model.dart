@@ -11,6 +11,7 @@ class UserModel extends Equatable {
     required this.role,
     this.addresses = const [],
     this.loyaltyPoints = 0,
+    this.lifetimeLoyaltyPoints = 0,
     this.createdAt,
   });
 
@@ -21,6 +22,7 @@ class UserModel extends Equatable {
   final UserRole role;
   final List<AddressModel> addresses;
   final int loyaltyPoints;
+  final int lifetimeLoyaltyPoints;
   final DateTime? createdAt;
 
   bool get canAccessTableService => role.canAccessTableService;
@@ -29,6 +31,7 @@ class UserModel extends Equatable {
   factory UserModel.fromFirestore(String id, Map<String, dynamic> data) {
     final addressesRaw = data['addresses'] as List<dynamic>? ?? [];
     final loyaltyRaw = data['loyaltyPoints'] ?? data['points'];
+    final lifetimeLoyaltyRaw = data['lifetimeLoyaltyPoints'];
     return UserModel(
       id: id,
       name: data['name'] as String? ?? '',
@@ -39,6 +42,8 @@ class UserModel extends Equatable {
           .map((item) => AddressModel.fromMap(item as Map<String, dynamic>))
           .toList(),
       loyaltyPoints: loyaltyRaw is num ? loyaltyRaw.toInt() : 0,
+      lifetimeLoyaltyPoints:
+          lifetimeLoyaltyRaw is num ? lifetimeLoyaltyRaw.toInt() : 0,
       createdAt: _timestampToDate(data['createdAt']),
     );
   }
@@ -51,6 +56,7 @@ class UserModel extends Equatable {
       'role': role.value,
       'addresses': addresses.map((address) => address.toMap()).toList(),
       'loyaltyPoints': loyaltyPoints,
+      'lifetimeLoyaltyPoints': lifetimeLoyaltyPoints,
       'createdAt': createdAt,
     };
   }
@@ -64,6 +70,7 @@ class UserModel extends Equatable {
     role,
     addresses,
     loyaltyPoints,
+    lifetimeLoyaltyPoints,
     createdAt,
   ];
 }

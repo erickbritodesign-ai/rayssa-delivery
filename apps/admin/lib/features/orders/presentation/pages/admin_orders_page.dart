@@ -193,13 +193,20 @@ class _AdminOrdersPageState extends ConsumerState<AdminOrdersPage> {
   ) async {
     if (order.status == status) return;
 
-    await ref.read(adminFirestoreProvider).updateOrderStatus(order.id, status);
+    final awardedPoints = await ref
+        .read(adminFirestoreProvider)
+        .updateOrderStatus(order.id, status);
 
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text('Pedido atualizado para ${_statusLabel(status)}.')),
+        content: Text(
+          awardedPoints > 0
+              ? 'Pedido atualizado para ${_statusLabel(status)}. $awardedPoints pontos concedidos.'
+              : 'Pedido atualizado para ${_statusLabel(status)}.',
+        ),
+      ),
     );
   }
 }
@@ -636,6 +643,12 @@ class _OrderMetaRow extends StatelessWidget {
           icon: Icons.verified_outlined,
           label: _paymentStatusLabel(order.paymentStatus),
         ),
+        if (order.loyaltyPointsAwarded && order.loyaltyPoints > 0)
+          _MetaPill(
+            icon: Icons.workspace_premium_outlined,
+            label: 'Pontos: ${order.loyaltyPoints}',
+            emphasized: true,
+          ),
       ],
     );
   }
@@ -1104,7 +1117,7 @@ String _deliveryTypeLabel(DeliveryType type) {
     case DeliveryType.pickup:
       return 'Retirada';
     case DeliveryType.dineIn:
-      return 'Consumo no local';
+      return 'Presencial';
   }
 }
 
@@ -1126,30 +1139,30 @@ String _paymentMethodLabel(PaymentMethod method) {
     case PaymentMethod.pix:
       return 'PIX';
     case PaymentMethod.cash:
-      return 'Dinheiro na entrega';
+      return 'Dinheiro';
     case PaymentMethod.creditCard:
-      return 'Cartão de crédito';
+      return 'Crédito';
     case PaymentMethod.debitCard:
-      return 'Cartão de débito';
+      return 'Débito';
     case PaymentMethod.pixOnDelivery:
-      return 'Pix na entrega';
+      return 'Pix';
     case PaymentMethod.pixApp:
-      return 'Pix pelo aplicativo';
+      return 'Pix app';
   }
 }
 
 String _paymentStatusLabel(PaymentStatus status) {
   switch (status) {
     case PaymentStatus.pending:
-      return 'Pagamento pendente';
+      return 'Pendente';
     case PaymentStatus.paid:
       return 'Pago';
     case PaymentStatus.approved:
-      return 'Pagamento aprovado';
+      return 'Aprovado';
     case PaymentStatus.rejected:
-      return 'Pagamento recusado';
+      return 'Recusado';
     case PaymentStatus.cancelled:
-      return 'Pagamento cancelado';
+      return 'Cancelado';
   }
 }
 
