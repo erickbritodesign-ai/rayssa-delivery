@@ -16,5 +16,7 @@ final selectedCategoryIdProvider = StateProvider<String?>((ref) => null);
 
 final productsProvider = StreamProvider<List<ProductModel>>((ref) {
   final categoryId = ref.watch(selectedCategoryIdProvider);
-  return ref.watch(menuRepositoryProvider).watchProducts(categoryId: categoryId);
+  return ref
+      .watch(menuRepositoryProvider)
+      .watchProducts(categoryId: categoryId);
 });

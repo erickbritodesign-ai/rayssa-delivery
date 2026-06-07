@@ -64,7 +64,8 @@ abstract final class RayPhotos {
   }
 
   static RayPhoto fallbackForProduct(ProductModel product) {
-    final text = normalizedCatalogText('${product.name} ${product.description}');
+    final text =
+        normalizedCatalogText('${product.name} ${product.description}');
     if (text.contains('milho') || text.contains('queijo')) return pastelMilho;
     if (text.contains('pastel')) return pastel;
     if (text.contains('pizza')) return pizza;

@@ -1,5 +1,6 @@
 enum PaymentStatus {
   pending('pending', 'Pendente'),
+  paid('paid', 'Pago'),
   approved('approved', 'Aprovado'),
   rejected('rejected', 'Recusado'),
   cancelled('cancelled', 'Cancelado');

@@ -42,7 +42,7 @@ class AuthRemoteDatasource {
       name: name,
       email: email,
       phone: phone,
-      role: UserRole.client,
+      role: UserRole.customer,
       createdAt: DateTime.now(),
     );
     return _firestore

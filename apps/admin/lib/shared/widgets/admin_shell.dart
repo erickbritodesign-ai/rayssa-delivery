@@ -31,17 +31,22 @@ class AdminShell extends ConsumerWidget {
             NavigationDestination(
               icon: Icon(Icons.category_outlined),
               selectedIcon: Icon(Icons.category),
-              label: 'Categoria',
+              label: 'Cat.',
             ),
             NavigationDestination(
               icon: Icon(Icons.fastfood_outlined),
               selectedIcon: Icon(Icons.fastfood),
-              label: 'Produtos',
+              label: 'Prod.',
             ),
             NavigationDestination(
               icon: Icon(Icons.receipt_long_outlined),
               selectedIcon: Icon(Icons.receipt_long),
-              label: 'Pedidos',
+              label: 'Ped.',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.table_restaurant_outlined),
+              selectedIcon: Icon(Icons.table_restaurant),
+              label: 'Mesas',
             ),
             NavigationDestination(
               icon: Icon(Icons.settings_outlined),
@@ -80,6 +85,10 @@ class AdminShell extends ConsumerWidget {
                 label: Text('Pedidos'),
               ),
               NavigationRailDestination(
+                icon: Icon(Icons.table_restaurant),
+                label: Text('Mesas'),
+              ),
+              NavigationRailDestination(
                 icon: Icon(Icons.settings),
                 label: Text('Config.'),
               ),
@@ -107,7 +116,8 @@ class AdminShell extends ConsumerWidget {
     if (path.startsWith('/categories')) return 1;
     if (path.startsWith('/products')) return 2;
     if (path.startsWith('/orders')) return 3;
-    if (path.startsWith('/settings')) return 4;
+    if (path.startsWith('/tables')) return 4;
+    if (path.startsWith('/settings')) return 5;
     return 0;
   }
 
@@ -120,6 +130,8 @@ class AdminShell extends ConsumerWidget {
       case 3:
         return '/orders';
       case 4:
+        return '/tables';
+      case 5:
         return '/settings';
       default:
         return '/';

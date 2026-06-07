@@ -140,8 +140,8 @@ class _RayMarkPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeWidth = size.width * 0.018
-      ..color = (onDark ? AppTheme.primaryRed : AppTheme.warmWhite)
-          .withOpacity(0.58);
+      ..color =
+          (onDark ? AppTheme.primaryRed : AppTheme.warmWhite).withOpacity(0.58);
 
     for (var index = 0; index < 5; index++) {
       final x = size.width * (0.33 + index * 0.085);

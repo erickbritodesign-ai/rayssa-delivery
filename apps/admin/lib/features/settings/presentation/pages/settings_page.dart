@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rayssa_admin/shared/data/admin_firestore_service.dart';
 
-final storeSettingsProvider =
-    StreamProvider<Map<String, dynamic>>((ref) {
+final storeSettingsProvider = StreamProvider<Map<String, dynamic>>((ref) {
   return ref.watch(adminFirestoreProvider).watchStoreSettings();
 });
 

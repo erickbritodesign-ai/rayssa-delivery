@@ -1,4 +1,5 @@
 enum PaymentMethod {
+  notSelected('not_selected', 'A definir'),
   pix('pix', 'PIX'),
   cash('cash', 'Dinheiro na entrega'),
   creditCard('credit_card', 'Cartão de crédito na entrega'),

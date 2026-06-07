@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:rayssa_client/core/theme/app_theme.dart';
 import 'package:rayssa_client/features/orders/presentation/providers/order_providers.dart';
@@ -33,7 +34,14 @@ class OrderDetailPage extends ConsumerWidget {
     final currency = NumberFormat.simpleCurrency(locale: 'pt_BR');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Acompanhar pedido')),
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Voltar',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => _leaveOrderDetail(context),
+        ),
+        title: const Text('Acompanhar pedido'),
+      ),
       body: orderAsync.when(
         data: (order) {
           if (order == null) {
@@ -54,7 +62,10 @@ class OrderDetailPage extends ConsumerWidget {
               if (order.status == OrderStatus.cancelled)
                 const _CancelledCard()
               else
-                _TrackingTimeline(currentStep: currentStep),
+                _TrackingTimeline(
+                  currentStep: currentStep,
+                  deliveryType: order.deliveryType,
+                ),
               const SizedBox(height: 14),
               _InfoCard(
                 icon: Icons.restaurant_menu,
@@ -129,12 +140,28 @@ class OrderDetailPage extends ConsumerWidget {
                     ],
                   ),
                 ),
+              if (order.deliveryType == DeliveryType.dineIn)
+                _InfoCard(
+                  icon: Icons.table_restaurant_outlined,
+                  title: 'Consumo no local',
+                  child: Text(
+                    order.tableNumber == null
+                        ? 'Mesa não informada'
+                        : 'Mesa ${order.tableNumber}',
+                  ),
+                ),
               if ((order.notes ?? '').isNotEmpty)
                 _InfoCard(
                   icon: Icons.edit_note,
                   title: 'Observações',
                   child: Text(order.notes!),
                 ),
+              const SizedBox(height: 4),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/'),
+                icon: const Icon(Icons.restaurant_menu_outlined),
+                label: const Text('Voltar ao card\u00e1pio'),
+              ),
             ],
           );
         },
@@ -143,6 +170,15 @@ class OrderDetailPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+void _leaveOrderDetail(BuildContext context) {
+  if (context.canPop()) {
+    context.pop();
+    return;
+  }
+
+  context.go('/');
 }
 
 class _TrackingHero extends StatelessWidget {
@@ -189,7 +225,7 @@ class _TrackingHero extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                _statusHeadline(order.status),
+                _statusHeadline(order),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: AppTheme.warmWhite,
                       fontSize: 28,
@@ -197,7 +233,7 @@ class _TrackingHero extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                _statusMessage(order.status),
+                _statusMessage(order),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppTheme.cream.withOpacity(0.82),
                     ),
@@ -209,7 +245,7 @@ class _TrackingHero extends StatelessWidget {
                 children: [
                   _HeroMeta(icon: Icons.pix, label: order.paymentStatus.label),
                   _HeroMeta(
-                    icon: Icons.delivery_dining,
+                    icon: _deliveryTypeIcon(order.deliveryType),
                     label: order.deliveryType.label,
                   ),
                   _HeroMeta(icon: Icons.payments_outlined, label: total),
@@ -222,8 +258,19 @@ class _TrackingHero extends StatelessWidget {
     );
   }
 
-  String _statusHeadline(OrderStatus status) {
-    switch (status) {
+  IconData _deliveryTypeIcon(DeliveryType deliveryType) {
+    switch (deliveryType) {
+      case DeliveryType.delivery:
+        return Icons.delivery_dining;
+      case DeliveryType.pickup:
+        return Icons.storefront;
+      case DeliveryType.dineIn:
+        return Icons.table_restaurant;
+    }
+  }
+
+  String _statusHeadline(OrderModel order) {
+    switch (order.status) {
       case OrderStatus.received:
         return 'Pedido recebido';
       case OrderStatus.confirmed:
@@ -231,16 +278,28 @@ class _TrackingHero extends StatelessWidget {
       case OrderStatus.preparing:
         return 'A Ray está preparando';
       case OrderStatus.outForDelivery:
+        if (order.deliveryType == DeliveryType.pickup) {
+          return 'Pronto para retirada';
+        }
+        if (order.deliveryType == DeliveryType.dineIn) {
+          return 'Servido na mesa';
+        }
         return 'Saiu para entrega';
       case OrderStatus.delivered:
+        if (order.deliveryType == DeliveryType.pickup) {
+          return 'Pedido retirado';
+        }
+        if (order.deliveryType == DeliveryType.dineIn) {
+          return 'Atendimento finalizado';
+        }
         return 'Pedido entregue';
       case OrderStatus.cancelled:
         return 'Pedido cancelado';
     }
   }
 
-  String _statusMessage(OrderStatus status) {
-    switch (status) {
+  String _statusMessage(OrderModel order) {
+    switch (order.status) {
       case OrderStatus.received:
         return 'A cozinha já recebeu seu pedido.';
       case OrderStatus.confirmed:
@@ -248,8 +307,20 @@ class _TrackingHero extends StatelessWidget {
       case OrderStatus.preparing:
         return 'Seu pedido está ganhando aquele cuidado artesanal.';
       case OrderStatus.outForDelivery:
+        if (order.deliveryType == DeliveryType.pickup) {
+          return 'Pode buscar seu pedido na Lanchonete da Ray.';
+        }
+        if (order.deliveryType == DeliveryType.dineIn) {
+          return 'Seu pedido foi levado at\u00e9 a mesa.';
+        }
         return 'As delícias da Ray estão a caminho.';
       case OrderStatus.delivered:
+        if (order.deliveryType == DeliveryType.pickup) {
+          return 'Obrigada por retirar seu pedido com a Ray.';
+        }
+        if (order.deliveryType == DeliveryType.dineIn) {
+          return 'Obrigada por consumir na Lanchonete da Ray.';
+        }
         return 'Obrigada por pedir com a Lanchonete da Ray.';
       case OrderStatus.cancelled:
         return 'Este pedido não seguirá para preparo.';
@@ -291,36 +362,63 @@ class _HeroMeta extends StatelessWidget {
 }
 
 class _TrackingTimeline extends StatelessWidget {
-  const _TrackingTimeline({required this.currentStep});
+  const _TrackingTimeline({
+    required this.currentStep,
+    required this.deliveryType,
+  });
 
   final int currentStep;
-
-  static const _steps = [
-    ('Recebido', 'A Ray recebeu seu pedido.'),
-    ('Confirmado', 'Tudo certo para começar.'),
-    ('Em preparo', 'Seu pedido está sendo feito.'),
-    ('Saiu para entrega', 'Está a caminho de você.'),
-    ('Entregue', 'Pedido finalizado.'),
-  ];
+  final DeliveryType deliveryType;
 
   @override
   Widget build(BuildContext context) {
+    final steps = _trackingStepsFor(deliveryType);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            for (var index = 0; index < _steps.length; index++)
+            for (var index = 0; index < steps.length; index++)
               _TimelineStep(
-                title: _steps[index].$1,
-                subtitle: _steps[index].$2,
+                title: steps[index].$1,
+                subtitle: steps[index].$2,
                 active: index <= currentStep,
-                last: index == _steps.length - 1,
+                last: index == steps.length - 1,
               ),
           ],
         ),
       ),
     );
+  }
+}
+
+List<(String, String)> _trackingStepsFor(DeliveryType deliveryType) {
+  switch (deliveryType) {
+    case DeliveryType.delivery:
+      return const [
+        ('Recebido', 'A Ray recebeu seu pedido.'),
+        ('Confirmado', 'Tudo certo para come\u00e7ar.'),
+        ('Em preparo', 'Seu pedido est\u00e1 sendo feito.'),
+        ('Saiu para entrega', 'Est\u00e1 a caminho de voc\u00ea.'),
+        ('Entregue', 'Pedido finalizado.'),
+      ];
+    case DeliveryType.pickup:
+      return const [
+        ('Recebido', 'A Ray recebeu seu pedido.'),
+        ('Confirmado', 'Tudo certo para come\u00e7ar.'),
+        ('Em preparo', 'Seu pedido est\u00e1 sendo feito.'),
+        ('Pronto para retirada', 'Pode buscar na Lanchonete da Ray.'),
+        ('Retirado', 'Pedido finalizado.'),
+      ];
+    case DeliveryType.dineIn:
+      return const [
+        ('Recebido', 'A Ray recebeu seu pedido.'),
+        ('Confirmado', 'Tudo certo para come\u00e7ar.'),
+        ('Em preparo', 'Seu pedido est\u00e1 sendo feito.'),
+        ('Servido na mesa', 'Seu pedido foi levado at\u00e9 a mesa.'),
+        ('Finalizado', 'Atendimento conclu\u00eddo.'),
+      ];
   }
 }
 

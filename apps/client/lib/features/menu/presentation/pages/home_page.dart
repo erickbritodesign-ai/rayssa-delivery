@@ -1,6 +1,9 @@
+﻿import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:rayssa_client/core/branding/ray_photos.dart';
 import 'package:rayssa_client/core/theme/app_theme.dart';
@@ -14,12 +17,17 @@ const _allFilter = 'Todos';
 
 const _filterLabels = [
   _allFilter,
-  'Pastéis',
+  'Past\u00e9is',
   'Salgados',
   'Bebidas',
   'Caldo de Cana',
   'Doces',
 ];
+
+typedef _AddProductCallback = void Function(
+  ProductModel product,
+  Offset? origin,
+);
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -32,9 +40,14 @@ class _HomePageState extends ConsumerState<HomePage> {
   final _searchController = TextEditingController();
   final _menuKey = GlobalKey();
   String _selectedFilter = _allFilter;
+  bool _cartPulse = false;
+  bool _toastVisible = false;
+  String _toastMessage = 'Adicionado Ã  sacola';
+  Timer? _toastTimer;
 
   @override
   void dispose() {
+    _toastTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -44,126 +57,229 @@ class _HomePageState extends ConsumerState<HomePage> {
     final productsAsync = ref.watch(productsProvider);
     final cartCount = ref.watch(cartItemCountProvider);
     final currency = NumberFormat.simpleCurrency(locale: 'pt_BR');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            titleSpacing: 20,
-            title: const RayBrandMark(size: 36, showWordmark: true),
-            actions: [
-              IconButton(
-                tooltip: 'Conta',
-                icon: const Icon(Icons.person_outline),
-                onPressed: () => context.push('/profile'),
-              ),
-              IconButton(
-                tooltip: 'Meus pedidos',
-                icon: const Icon(Icons.receipt_long_outlined),
-                onPressed: () => context.push('/orders'),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: IconButton(
-                  tooltip: 'Sacola',
-                  icon: Badge(
-                    label: Text('$cartCount'),
-                    isLabelVisible: cartCount > 0,
-                    child: const Icon(Icons.shopping_bag_outlined),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                pinned: true,
+                titleSpacing: 12,
+                title: Row(
+                  children: [
+                    const RayBrandMark(size: 34, showWordmark: false),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Lanchonete da Ray',
+                              maxLines: 1,
+                              softWrap: false,
+                              style: GoogleFonts.playfairDisplay(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w900,
+                                color:
+                                    isDark ? AppTheme.darkText : AppTheme.ink,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            'Pastelaria artesanal',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: isDark
+                                  ? AppTheme.darkMuted
+                                  : AppTheme.muted,
+                              height: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  IconButton(
+                    tooltip: 'Conta',
+                    icon: const Icon(Icons.person_outline),
+                    onPressed: () => context.push('/profile'),
                   ),
-                  onPressed: () => context.push('/cart'),
+                  IconButton(
+                    tooltip: 'Meus pedidos',
+                    icon: const Icon(Icons.receipt_long_outlined),
+                    onPressed: () => context.push('/orders'),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: IconButton(
+                      tooltip: 'Sacola',
+                      icon: AnimatedScale(
+                        scale: _cartPulse ? 1.18 : 1,
+                        duration: const Duration(milliseconds: 160),
+                        curve: Curves.easeOutBack,
+                        child: Badge(
+                          label: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            transitionBuilder: (child, animation) {
+                              return ScaleTransition(
+                                scale: animation,
+                                child: child,
+                              );
+                            },
+                            child: Text(
+                              '$cartCount',
+                              key: ValueKey(cartCount),
+                            ),
+                          ),
+                          isLabelVisible: cartCount > 0,
+                          child: const Icon(Icons.shopping_bag_outlined),
+                        ),
+                      ),
+                      onPressed: () => context.push('/cart'),
+                    ),
+                  ),
+                ],
+              ),
+              productsAsync.when(
+                data: (products) => SliverList(
+                  delegate: SliverChildListDelegate.fixed([
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                      child: _CategoryCarousel(onSelected: _selectCategory),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
+                      child: const _SectionHeader(
+                        title: 'Mais pedidos da Ray',
+                        subtitle:
+                            'Os favoritos que saem quentinhos da cozinha.',
+                      ),
+                    ),
+                    _FeaturedProductsCarousel(
+                      products: _prioritizedProducts(products),
+                      currency: currency,
+                      onAdd: _addProduct,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
+                      child: _StorySection(photo: RayPhotos.rayStory),
+                    ),
+                    Padding(
+                      key: _menuKey,
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
+                      child: const _SectionHeader(
+                        title: 'Card\u00e1pio Completo',
+                        subtitle:
+                            'Encontre seu favorito no card\u00e1pio real da Ray.',
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _SearchField(
+                        controller: _searchController,
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _MenuFilters(
+                      selected: _selectedFilter,
+                      onSelected: (filter) {
+                        setState(() => _selectedFilter = filter);
+                      },
+                    ),
+                    _CompleteMenuSection(
+                      products: _filteredProducts(products),
+                      currency: currency,
+                      onAdd: _addProduct,
+                    ),
+                  ]),
+                ),
+                loading: () => const SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 420,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+                error: (e, _) => SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _InlineMessage(message: 'Erro: $e'),
                 ),
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: 104)),
             ],
           ),
-          productsAsync.when(
-            data: (products) => SliverList(
-              delegate: SliverChildListDelegate.fixed([
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                  child: _HeroPhoto(onViewMenu: _scrollToMenu),
-                ),
-                const SizedBox(height: 22),
-                const _PromoCarousel(),
-                Padding(
-                  key: _menuKey,
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
-                  child: const _SectionHeader(
-                    title: 'Mais pedidos da Ray',
-                    subtitle: 'Os favoritos que saem quentinhos da cozinha.',
-                  ),
-                ),
-                _FeaturedProductsCarousel(
-                  products: _prioritizedProducts(products),
-                  currency: currency,
-                  onAdd: (product) => ref
-                      .read(cartControllerProvider.notifier)
-                      .addProduct(product),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
-                  child: _StorySection(photo: RayPhotos.rayStory),
-                ),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(20, 24, 20, 10),
-                  child: _SectionHeader(
-                    title: 'Cardápio Completo',
-                    subtitle: 'Encontre seu favorito no cardápio real da Ray.',
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _SearchField(
-                    controller: _searchController,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _MenuFilters(
-                  selected: _selectedFilter,
-                  onSelected: (filter) {
-                    setState(() => _selectedFilter = filter);
-                  },
-                ),
-                _CompleteMenuSection(
-                  products: _filteredProducts(products),
-                  currency: currency,
-                  onAdd: (product) => ref
-                      .read(cartControllerProvider.notifier)
-                      .addProduct(product),
-                ),
-              ]),
-            ),
-            loading: () => const SliverToBoxAdapter(
-              child: SizedBox(
-                height: 420,
-                child: Center(child: CircularProgressIndicator()),
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: cartCount > 0 ? 92 : 24,
+            child: IgnorePointer(
+              ignoring: true,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                reverseDuration: const Duration(milliseconds: 140),
+                child: _toastVisible
+                    ? _CartMiniToast(
+                        key: ValueKey(_toastMessage),
+                        message: _toastMessage,
+                      )
+                    : const SizedBox.shrink(),
               ),
             ),
-            error: (e, _) => SliverFillRemaining(
-              hasScrollBody: false,
-              child: _InlineMessage(message: 'Erro: $e'),
-            ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 104)),
         ],
       ),
       floatingActionButton: cartCount > 0
-          ? FloatingActionButton.extended(
-              onPressed: () => context.push('/cart'),
-              icon: const Icon(Icons.shopping_bag_outlined),
-              label: Text('Sacola ($cartCount)'),
-              backgroundColor: AppTheme.primaryRed,
-              foregroundColor: AppTheme.warmWhite,
-              elevation: 12,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
+          ? AnimatedScale(
+              scale: _cartPulse ? 1.08 : 1,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutBack,
+              child: FloatingActionButton.extended(
+                onPressed: () => context.push('/cart'),
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  transitionBuilder: (child, animation) {
+                    return ScaleTransition(scale: animation, child: child);
+                  },
+                  child: Icon(
+                    Icons.shopping_bag_outlined,
+                    key: ValueKey(cartCount),
+                  ),
+                ),
+                label: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(opacity: animation, child: child);
+                  },
+                  child: Text(
+                    'Sacola ($cartCount)',
+                    key: ValueKey('cart-$cartCount'),
+                  ),
+                ),
+                backgroundColor: AppTheme.primaryRed,
+                foregroundColor: AppTheme.warmWhite,
+                elevation: _cartPulse ? 18 : 12,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
               ),
             )
           : null,
     );
   }
+
 
   List<ProductModel> _filteredProducts(List<ProductModel> products) {
     final query = normalizedCatalogText(_searchController.text.trim());
@@ -189,6 +305,180 @@ class _HomePageState extends ConsumerState<HomePage> {
       duration: const Duration(milliseconds: 480),
       curve: Curves.easeOutCubic,
       alignment: 0.08,
+    );
+  }
+
+  void _selectCategory(String filter) {
+    setState(() => _selectedFilter = filter);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToMenu());
+  }
+
+  void _addProduct(ProductModel product, Offset? origin) {
+    ref.read(cartControllerProvider.notifier).addProduct(product);
+    _showFlyingCartCue(origin);
+    _showCartToast('Adicionado à sacola');
+
+    setState(() => _cartPulse = true);
+    Future<void>.delayed(const Duration(milliseconds: 260), () {
+      if (!mounted) return;
+      setState(() => _cartPulse = false);
+    });
+  }
+
+  void _showCartToast(String message) {
+    _toastTimer?.cancel();
+    setState(() {
+      _toastMessage = message;
+      _toastVisible = true;
+    });
+    _toastTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (!mounted) return;
+      setState(() => _toastVisible = false);
+    });
+  }
+
+  void _showFlyingCartCue(Offset? origin) {
+    final overlay = Overlay.of(context);
+    final size = MediaQuery.sizeOf(context);
+    final appWidth = size.width > 520 ? 520.0 : size.width;
+    final appLeft = (size.width - appWidth) / 2;
+    final start = origin ?? Offset(appLeft + appWidth - 74, size.height - 120);
+    final target = Offset(appLeft + appWidth - 86, size.height - 86);
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _FlyingCartCue(start: start, target: target),
+    );
+    overlay.insert(entry);
+    Timer(const Duration(milliseconds: 760), entry.remove);
+  }
+}
+
+class _CartMiniToast extends StatelessWidget {
+  const _CartMiniToast({required this.message, super.key});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
+    return Center(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: dark ? AppTheme.darkCardSoft : AppTheme.ink,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: dark ? AppTheme.darkLine : AppTheme.ink.withOpacity(0.06),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(dark ? 0.34 : 0.16),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: AppTheme.gold.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(
+                  Icons.shopping_bag_outlined,
+                  color: AppTheme.gold,
+                  size: 15,
+                ),
+              ),
+              const SizedBox(width: 9),
+              Text(
+                message,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: AppTheme.warmWhite,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FlyingCartCue extends StatelessWidget {
+  const _FlyingCartCue({required this.start, required this.target});
+
+  final Offset start;
+  final Offset target;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 680),
+      curve: Curves.easeInOutCubic,
+      builder: (context, progress, child) {
+        final position = Offset.lerp(start, target, progress) ?? target;
+        final opacity = progress < 0.78 ? 1.0 : (1 - progress) / 0.22;
+        final scale = 1 + (0.18 * (1 - progress));
+
+        return Positioned(
+          left: position.dx - 18,
+          top: position.dy - 18,
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: opacity.clamp(0.0, 1.0),
+              child: Transform.scale(
+                scale: scale,
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppTheme.gold,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.ink.withOpacity(0.18),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: const SizedBox(
+          width: 36,
+          height: 36,
+          child: Center(
+            child: DefaultTextStyle(
+              style: TextStyle(
+                color: AppTheme.ink,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+                decoration: TextDecoration.none,
+                height: 1,
+              ),
+              child: Text(
+                '+1',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -260,247 +550,222 @@ String _categoryLabelForProduct(ProductModel product) {
       text.contains('assado')) {
     return 'Salgados';
   }
-  return 'Pastéis';
+  return 'Past\u00e9is';
 }
 
-class _HeroPhoto extends StatelessWidget {
-  const _HeroPhoto({required this.onViewMenu});
+class _CategoryCarousel extends StatefulWidget {
+  const _CategoryCarousel({required this.onSelected});
 
-  final VoidCallback onViewMenu;
+  final ValueChanged<String> onSelected;
+
+  @override
+  State<_CategoryCarousel> createState() => _CategoryCarouselState();
+}
+
+class _CategoryCarouselState extends State<_CategoryCarousel> {
+  final _controller = PageController();
+  Timer? _timer;
+  int _page = 0;
+
+  static final _items = [
+    _CategoryCarouselItem(
+      filter: 'Past\u00e9is',
+      title: 'Past\u00e9is',
+      subtitle: 'Crocantes e bem recheados',
+      photo: RayPhotos.pastel,
+    ),
+    _CategoryCarouselItem(
+      filter: 'Salgados',
+      title: 'Salgados',
+      subtitle: 'Receitas caseiras',
+      photo: RayPhotos.panqueca,
+    ),
+    _CategoryCarouselItem(
+      filter: 'Bebidas',
+      title: 'Bebidas',
+      subtitle: 'Geladinhas para acompanhar',
+      photo: RayPhotos.caldoCana,
+    ),
+    _CategoryCarouselItem(
+      filter: 'Doces',
+      title: 'Doces',
+      subtitle: 'Um carinho depois do salgado',
+      photo: RayPhotos.doce,
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!_controller.hasClients) return;
+      final next = (_page + 1) % _items.length;
+      _controller.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 520),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 332,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        color: AppTheme.chocolate,
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.chocolate.withOpacity(0.24),
-            blurRadius: 32,
-            offset: const Offset(0, 18),
+    return Column(
+      children: [
+        SizedBox(
+          height: 158,
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: _items.length,
+            onPageChanged: (index) => setState(() => _page = index),
+            itemBuilder: (context, index) {
+              final item = _items[index];
+              return _CategorySlideCard(
+                item: item,
+                onTap: () => widget.onSelected(item.filter),
+              );
+            },
           ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: _PhotoSurface(
-              photo: RayPhotos.pastelHero,
-              dark: true,
-            ),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.ink.withOpacity(0.86),
-                    AppTheme.ink.withOpacity(0.32),
-                    AppTheme.ink.withOpacity(0.08),
-                  ],
-                  begin: Alignment.bottomLeft,
-                  end: Alignment.topRight,
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 11,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.gold.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: AppTheme.gold.withOpacity(0.28)),
-                  ),
-                  child: const Text(
-                    'Feito com carinho em Pedro Canário',
-                    style: TextStyle(
-                      color: AppTheme.warmWhite,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Lanchonete e Pastelaria da Ray',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: AppTheme.warmWhite,
-                        fontSize: 34,
-                        height: 1.02,
-                      ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Pastéis quentinhos, doces e carinho em cada pedido.',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.cream,
-                        fontWeight: FontWeight.w700,
-                        height: 1.32,
-                      ),
-                ),
-                const SizedBox(height: 18),
-                FilledButton(
-                  onPressed: onViewMenu,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.warmWhite,
-                    foregroundColor: AppTheme.primaryRed,
-                    minimumSize: const Size(136, 44),
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                  child: const Text('Ver Cardápio'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 10),
+        _CarouselDots(count: _items.length, activeIndex: _page),
+      ],
     );
   }
 }
 
-class _PromoCarousel extends StatelessWidget {
-  const _PromoCarousel();
+class _CarouselDots extends StatelessWidget {
+  const _CarouselDots({required this.count, required this.activeIndex});
+
+  final int count;
+  final int activeIndex;
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      _PromoItem(
-        title: 'Pastéis',
-        subtitle: 'Crocantes e bem recheados',
-        photo: RayPhotos.pastel,
-      ),
-      _PromoItem(
-        title: 'Salgados',
-        subtitle: 'Receitas caseiras da Ray',
-        photo: RayPhotos.panqueca,
-      ),
-      _PromoItem(
-        title: 'Bebidas',
-        subtitle: 'Para acompanhar seu pedido',
-        photo: RayPhotos.caldoCana,
-      ),
-      _PromoItem(
-        title: 'Doces',
-        subtitle: 'Sobremesas com carinho',
-        photo: RayPhotos.doce,
-      ),
-    ];
+    if (count <= 1) return const SizedBox.shrink();
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = dark ? AppTheme.gold : AppTheme.primaryRed;
 
-    return SizedBox(
-      height: 132,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return _PromoCard(item: item);
-        },
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (var index = 0; index < count; index++)
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            width: index == activeIndex ? 18 : 7,
+            height: 7,
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            decoration: BoxDecoration(
+              color: index == activeIndex
+                  ? activeColor
+                  : activeColor.withOpacity(0.24),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+      ],
     );
   }
 }
 
-class _PromoCard extends StatelessWidget {
-  const _PromoCard({required this.item});
+class _CategorySlideCard extends StatelessWidget {
+  const _CategorySlideCard({required this.item, required this.onTap});
 
-  final _PromoItem item;
+  final _CategoryCarouselItem item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 222,
-      decoration: BoxDecoration(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(26),
-        color: AppTheme.chocolate,
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.chocolate.withOpacity(0.12),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Positioned.fill(child: _PhotoSurface(photo: item.photo)),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.ink.withOpacity(0.78),
-                    AppTheme.ink.withOpacity(0.12),
-                  ],
-                  begin: Alignment.bottomLeft,
-                  end: Alignment.topRight,
-                ),
+        onTap: onTap,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            color: AppTheme.chocolate,
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.chocolate.withOpacity(0.12),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
-            ),
+            ],
           ),
-          Positioned(
-            left: 14,
-            right: 14,
-            bottom: 14,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(26),
+            child: Stack(
               children: [
-                Text(
-                  item.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppTheme.warmWhite,
-                        fontWeight: FontWeight.w900,
+                Positioned.fill(child: _PhotoSurface(photo: item.photo)),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.ink.withOpacity(0.78),
+                          AppTheme.ink.withOpacity(0.12),
+                        ],
+                        begin: Alignment.bottomLeft,
+                        end: Alignment.topRight,
                       ),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  item.subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.cream,
-                        fontWeight: FontWeight.w700,
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: AppTheme.warmWhite,
+                              fontWeight: FontWeight.w900,
+                            ),
                       ),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.cream,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _PromoItem {
-  const _PromoItem({
+class _CategoryCarouselItem {
+  const _CategoryCarouselItem({
+    required this.filter,
     required this.title,
     required this.subtitle,
     required this.photo,
   });
 
+  final String filter;
   final String title;
   final String subtitle;
   final RayPhoto photo;
@@ -513,15 +778,17 @@ class _StorySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.warmWhite,
+        color: dark ? AppTheme.darkCard : AppTheme.warmWhite,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppTheme.line),
+        border: Border.all(color: dark ? AppTheme.darkLine : AppTheme.line),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.chocolate.withOpacity(0.08),
+            color: AppTheme.chocolate.withOpacity(dark ? 0.22 : 0.08),
             blurRadius: 22,
             offset: const Offset(0, 12),
           ),
@@ -553,16 +820,19 @@ class _StorySection extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Conheça a Ray',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontSize: 28,
-                      ),
+                  'Conhe\u00e7a a Ray',
+                  style: GoogleFonts.playfairDisplay(
+                    color: dark ? AppTheme.darkText : AppTheme.ink,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    height: 1.05,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'O sonho da Ray virou sabor. Da primeira ideia à lanchonete, cada pastel, pizza e doce é preparado com o mesmo carinho de quem ama servir bem.',
+                  'O sonho da Ray virou sabor. Da primeira ideia \u00e0 lanchonete, cada pastel, pizza e doce \u00e9 preparado com o mesmo carinho de quem ama servir bem.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.muted,
+                        color: dark ? AppTheme.darkMuted : AppTheme.muted,
                         fontSize: 14,
                         height: 1.45,
                       ),
@@ -576,7 +846,7 @@ class _StorySection extends StatelessWidget {
   }
 }
 
-class _FeaturedProductsCarousel extends StatelessWidget {
+class _FeaturedProductsCarousel extends StatefulWidget {
   const _FeaturedProductsCarousel({
     required this.products,
     required this.currency,
@@ -585,38 +855,61 @@ class _FeaturedProductsCarousel extends StatelessWidget {
 
   final List<ProductModel> products;
   final NumberFormat currency;
-  final ValueChanged<ProductModel> onAdd;
+  final _AddProductCallback onAdd;
+
+  @override
+  State<_FeaturedProductsCarousel> createState() =>
+      _FeaturedProductsCarouselState();
+}
+
+class _FeaturedProductsCarouselState extends State<_FeaturedProductsCarousel> {
+  final _controller = PageController();
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (products.isEmpty) {
+    if (widget.products.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(horizontal: 20),
         child: _InlineMessage(
-          message: 'A Ray está preparando os favoritos do dia.',
+          message: 'A Ray est\u00e1 preparando os favoritos do dia.',
         ),
       );
     }
 
-    final visibleProducts = products.take(4).toList();
+    final visibleProducts = widget.products.take(4).toList();
 
-    return SizedBox(
-      height: 344,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: visibleProducts.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
-        itemBuilder: (context, index) {
-          final product = visibleProducts[index];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 404,
+            child: PageView.builder(
+              controller: _controller,
+              itemCount: visibleProducts.length,
+              onPageChanged: (index) => setState(() => _page = index),
+              itemBuilder: (context, index) {
+                final product = visibleProducts[index];
 
-          return _FeaturedProductCard(
-            product: product,
-            price: currency.format(product.price),
-            showBadge: index == 0 || _isPastelDeCarne(product),
-            onAdd: () => onAdd(product),
-          );
-        },
+                return _FeaturedProductCard(
+                  product: product,
+                  price: widget.currency.format(product.price),
+                  showBadge: index == 0 || _isPastelDeCarne(product),
+                  onAdd: (origin) => widget.onAdd(product, origin),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          _CarouselDots(count: visibleProducts.length, activeIndex: _page),
+        ],
       ),
     );
   }
@@ -633,37 +926,37 @@ class _FeaturedProductCard extends StatelessWidget {
   final ProductModel product;
   final String price;
   final bool showBadge;
-  final VoidCallback onAdd;
+  final ValueChanged<Offset?> onAdd;
 
   @override
   Widget build(BuildContext context) {
     final available = product.isAvailable && product.isActive;
     final fallbackPhoto = RayPhotos.fallbackForProduct(product);
+    final dark = Theme.of(context).brightness == Brightness.dark;
 
-    return SizedBox(
-      width: 294,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.warmWhite,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: AppTheme.line),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.chocolate.withOpacity(0.1),
-              blurRadius: 24,
-              offset: const Offset(0, 14),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
+    return Container(
+      decoration: BoxDecoration(
+        color: dark ? AppTheme.darkCard : AppTheme.warmWhite,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: dark ? AppTheme.darkLine : AppTheme.line),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.chocolate.withOpacity(dark ? 0.24 : 0.1),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 232,
+            width: double.infinity,
+            child: Stack(
               children: [
-                SizedBox(
-                  height: 218,
-                  width: double.infinity,
+                Positioned.fill(
                   child: _PhotoSurface(
                     imageUrl: product.imageUrl,
                     photo: fallbackPhoto,
@@ -687,12 +980,14 @@ class _FeaturedProductCard extends StatelessWidget {
                   Positioned(
                     left: 14,
                     top: 14,
-                    child: _GoldBadge(label: 'Mais pedido'),
+                    child: _GoldBadge(label: '\u{1F525} Mais pedido'),
                   ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(15, 13, 15, 15),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -701,55 +996,49 @@ class _FeaturedProductCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: dark ? AppTheme.darkText : AppTheme.ink,
                           fontSize: 18,
                           fontWeight: FontWeight.w900,
                         ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Text(
                     product.description.isEmpty
                         ? 'Favorito da cozinha da Ray.'
                         : product.description,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          height: 1.25,
+                        ),
                   ),
-                  const SizedBox(height: 12),
+                  const Spacer(),
                   Row(
                     children: [
                       Expanded(
                         child: Text(
                           price,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style:
                               Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    color: _secondaryRay,
+                                    color: dark ? AppTheme.gold : _secondaryRay,
                                     fontSize: 21,
                                     fontWeight: FontWeight.w900,
                                   ),
                         ),
                       ),
-                      FilledButton(
-                        onPressed: available ? onAdd : null,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppTheme.primaryRed,
-                          foregroundColor: AppTheme.warmWhite,
-                          disabledBackgroundColor: AppTheme.line,
-                          disabledForegroundColor: AppTheme.muted,
-                          minimumSize: const Size(102, 42),
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                        child: const Text('Adicionar'),
+                      _AddToCartButton(
+                        enabled: available,
+                        onAdd: onAdd,
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -793,6 +1082,8 @@ class _MenuFilters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
     return SizedBox(
       height: 44,
       child: ListView.separated(
@@ -810,13 +1101,21 @@ class _MenuFilters extends StatelessWidget {
             onSelected: (_) => onSelected(label),
             showCheckmark: false,
             selectedColor: AppTheme.primaryRed,
-            backgroundColor: AppTheme.warmWhite,
+            backgroundColor: dark ? AppTheme.darkCard : AppTheme.warmWhite,
             labelStyle: TextStyle(
-              color: isSelected ? AppTheme.warmWhite : AppTheme.ink,
+              color: isSelected
+                  ? AppTheme.warmWhite
+                  : dark
+                      ? AppTheme.darkText
+                      : AppTheme.ink,
               fontWeight: FontWeight.w900,
             ),
             side: BorderSide(
-              color: isSelected ? AppTheme.primaryRed : AppTheme.line,
+              color: isSelected
+                  ? AppTheme.primaryRed
+                  : dark
+                      ? AppTheme.darkLine
+                      : AppTheme.line,
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(999),
@@ -837,7 +1136,7 @@ class _CompleteMenuSection extends StatelessWidget {
 
   final List<ProductModel> products;
   final NumberFormat currency;
-  final ValueChanged<ProductModel> onAdd;
+  final _AddProductCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -880,7 +1179,7 @@ class _CompleteMenuSection extends StatelessWidget {
             child: _MenuProductTile(
               product: product,
               price: currency.format(product.price),
-              onAdd: () => onAdd(product),
+              onAdd: (origin) => onAdd(product, origin),
             ),
           ),
         );
@@ -899,18 +1198,24 @@ class _MenuGroupHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
     return Row(
       children: [
         Expanded(
           child: Text(
             title,
-            style: Theme.of(context).textTheme.titleLarge,
+            style: GoogleFonts.playfairDisplay(
+              color: dark ? AppTheme.darkText : AppTheme.ink,
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
         Text(
           '$count itens',
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AppTheme.muted,
+                color: dark ? AppTheme.darkMuted : AppTheme.muted,
                 fontWeight: FontWeight.w800,
               ),
         ),
@@ -928,12 +1233,13 @@ class _MenuProductTile extends StatelessWidget {
 
   final ProductModel product;
   final String price;
-  final VoidCallback onAdd;
+  final ValueChanged<Offset?> onAdd;
 
   @override
   Widget build(BuildContext context) {
     final available = product.isAvailable && product.isActive;
     final fallbackPhoto = RayPhotos.fallbackForProduct(product);
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final compact = MediaQuery.sizeOf(context).width < 380;
     final imageWidth = compact ? 82.0 : 96.0;
     final imageHeight = compact ? 96.0 : 108.0;
@@ -942,12 +1248,12 @@ class _MenuProductTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: AppTheme.warmWhite,
+        color: dark ? AppTheme.darkCard : AppTheme.warmWhite,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.line),
+        border: Border.all(color: dark ? AppTheme.darkLine : AppTheme.line),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.chocolate.withOpacity(0.06),
+            color: AppTheme.chocolate.withOpacity(dark ? 0.2 : 0.06),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -980,6 +1286,7 @@ class _MenuProductTile extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: dark ? AppTheme.darkText : AppTheme.ink,
                           fontWeight: FontWeight.w900,
                           fontSize: compact ? 15 : null,
                         ),
@@ -1004,7 +1311,7 @@ class _MenuProductTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: _secondaryRay,
+                                    color: dark ? AppTheme.gold : _secondaryRay,
                                     fontWeight: FontWeight.w900,
                                     fontSize: compact ? 15 : null,
                                   ),
@@ -1013,16 +1320,9 @@ class _MenuProductTile extends StatelessWidget {
                       SizedBox(
                         width: addButtonSize,
                         height: addButtonSize,
-                        child: IconButton.filled(
-                          tooltip: 'Adicionar',
-                          onPressed: available ? onAdd : null,
-                          style: IconButton.styleFrom(
-                            backgroundColor: AppTheme.primaryRed,
-                            foregroundColor: AppTheme.warmWhite,
-                            disabledBackgroundColor: AppTheme.line,
-                            disabledForegroundColor: AppTheme.muted,
-                          ),
-                          icon: const Icon(Icons.add),
+                        child: _AddIconButton(
+                          enabled: available,
+                          onAdd: onAdd,
                         ),
                       ),
                     ],
@@ -1042,6 +1342,123 @@ bool _isPastelDeCarne(ProductModel product) {
   return text.contains('pastel') && text.contains('carne');
 }
 
+class _AddToCartButton extends StatefulWidget {
+  const _AddToCartButton({required this.enabled, required this.onAdd});
+
+  final bool enabled;
+  final ValueChanged<Offset?> onAdd;
+
+  @override
+  State<_AddToCartButton> createState() => _AddToCartButtonState();
+}
+
+class _AddToCartButtonState extends State<_AddToCartButton> {
+  bool _pressed = false;
+  Offset? _tapOrigin;
+
+  void _handleTap() {
+    if (!widget.enabled) return;
+    setState(() => _pressed = true);
+    widget.onAdd(_tapOrigin ?? _centerOrigin());
+    Future<void>.delayed(const Duration(milliseconds: 130), () {
+      if (!mounted) return;
+      setState(() => _pressed = false);
+    });
+  }
+
+  Offset _centerOrigin() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return Offset.zero;
+    return box.localToGlobal(box.size.center(Offset.zero));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (details) => _tapOrigin = details.globalPosition,
+      child: AnimatedScale(
+        scale: _pressed ? 0.96 : 1,
+        duration: const Duration(milliseconds: 130),
+        curve: Curves.easeOutCubic,
+        child: FilledButton.icon(
+          onPressed: widget.enabled ? _handleTap : null,
+          style: FilledButton.styleFrom(
+            backgroundColor: AppTheme.primaryRed,
+            foregroundColor: AppTheme.warmWhite,
+            disabledBackgroundColor: AppTheme.line,
+            disabledForegroundColor: AppTheme.muted,
+            minimumSize: const Size(118, 42),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text(
+            'Adicionar',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddIconButton extends StatefulWidget {
+  const _AddIconButton({required this.enabled, required this.onAdd});
+
+  final bool enabled;
+  final ValueChanged<Offset?> onAdd;
+
+  @override
+  State<_AddIconButton> createState() => _AddIconButtonState();
+}
+
+class _AddIconButtonState extends State<_AddIconButton> {
+  bool _pressed = false;
+  Offset? _tapOrigin;
+
+  void _handleTap() {
+    if (!widget.enabled) return;
+    setState(() => _pressed = true);
+    widget.onAdd(_tapOrigin ?? _centerOrigin());
+    Future<void>.delayed(const Duration(milliseconds: 130), () {
+      if (!mounted) return;
+      setState(() => _pressed = false);
+    });
+  }
+
+  Offset _centerOrigin() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return Offset.zero;
+    return box.localToGlobal(box.size.center(Offset.zero));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (details) => _tapOrigin = details.globalPosition,
+      child: AnimatedScale(
+        scale: _pressed ? 0.9 : 1,
+        duration: const Duration(milliseconds: 130),
+        curve: Curves.easeOutCubic,
+        child: IconButton.filled(
+          tooltip: 'Adicionar',
+          onPressed: widget.enabled ? _handleTap : null,
+          style: IconButton.styleFrom(
+            backgroundColor: AppTheme.primaryRed,
+            foregroundColor: AppTheme.warmWhite,
+            disabledBackgroundColor: AppTheme.line,
+            disabledForegroundColor: AppTheme.muted,
+          ),
+          icon: const Icon(Icons.add),
+        ),
+      ),
+    );
+  }
+}
+
 class _GoldBadge extends StatelessWidget {
   const _GoldBadge({required this.label});
 
@@ -1051,8 +1468,9 @@ class _GoldBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTheme.gold,
+        color: const Color(0xFFF3D37A),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.gold.withOpacity(0.48)),
         boxShadow: [
           BoxShadow(
             color: AppTheme.ink.withOpacity(0.16),
@@ -1062,12 +1480,15 @@ class _GoldBadge extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: AppTheme.ink,
                 fontWeight: FontWeight.w900,
+                fontSize: 12,
               ),
         ),
       ),
@@ -1155,16 +1576,28 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          title,
+          style: GoogleFonts.playfairDisplay(
+            color: dark ? AppTheme.darkText : AppTheme.ink,
+            fontSize: 27,
+            fontWeight: FontWeight.w900,
+            height: 1.05,
+          ),
+        ),
         const SizedBox(height: 3),
         Text(
           subtitle,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodySmall,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: dark ? AppTheme.darkMuted : AppTheme.muted,
+              ),
         ),
       ],
     );

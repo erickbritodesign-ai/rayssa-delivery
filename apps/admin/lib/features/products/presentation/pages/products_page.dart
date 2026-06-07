@@ -162,8 +162,9 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     }).toList();
 
     filtered.sort((a, b) {
-      final categoryComparison = _categoryOrder(_categoryLabel(a, categoriesById))
-          .compareTo(_categoryOrder(_categoryLabel(b, categoriesById)));
+      final categoryComparison =
+          _categoryOrder(_categoryLabel(a, categoriesById))
+              .compareTo(_categoryOrder(_categoryLabel(b, categoriesById)));
       if (categoryComparison != 0) return categoryComparison;
       return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
@@ -305,7 +306,8 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     BuildContext context, {
     ProductModel? product,
   }) async {
-    final categories = await ref.read(adminCategoriesForProductsProvider.future);
+    final categories =
+        await ref.read(adminCategoriesForProductsProvider.future);
     final nameController = TextEditingController(text: product?.name ?? '');
     final descController =
         TextEditingController(text: product?.description ?? '');
@@ -313,8 +315,8 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
         TextEditingController(text: '${product?.price ?? 0}');
     final imageUrlController =
         TextEditingController(text: product?.imageUrl ?? '');
-    var categoryId =
-        product?.categoryId ?? (categories.isNotEmpty ? categories.first.id : '');
+    var categoryId = product?.categoryId ??
+        (categories.isNotEmpty ? categories.first.id : '');
     var imageUrl = imageUrlController.text.trim();
     var isAvailable = product?.isAvailable ?? true;
     var isActive = product?.isActive ?? true;
@@ -857,9 +859,8 @@ class _ImagePlaceholder extends StatelessWidget {
   }
 
   IconData _placeholderIcon(ProductModel product) {
-    final text =
-        '${product.categoryId} ${product.name} ${product.description}'
-            .toLowerCase();
+    final text = '${product.categoryId} ${product.name} ${product.description}'
+        .toLowerCase();
 
     if (text.contains('bebida') ||
         text.contains('refri') ||
@@ -1028,9 +1029,7 @@ class _ProductActions extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: onToggleActive,
           icon: Icon(
-            isActive
-                ? Icons.pause_circle_outline
-                : Icons.play_circle_outline,
+            isActive ? Icons.pause_circle_outline : Icons.play_circle_outline,
           ),
           label: Text(isActive ? 'Desativar' : 'Ativar'),
         ),

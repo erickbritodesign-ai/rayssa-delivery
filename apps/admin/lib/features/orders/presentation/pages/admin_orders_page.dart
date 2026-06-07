@@ -23,6 +23,9 @@ class _AdminOrdersPageState extends ConsumerState<AdminOrdersPage> {
     'Saiu para entrega',
     'Entregues',
     'Cancelados',
+    'Delivery',
+    'Retirada',
+    'Presencial',
   ];
 
   final _searchController = TextEditingController();
@@ -120,7 +123,8 @@ class _AdminOrdersPageState extends ConsumerState<AdminOrdersPage> {
 
     return orders.where((order) {
       final matchesFilter = _matchesStatusFilter(order);
-      final matchesSearch = query.isEmpty || _searchableText(order).contains(query);
+      final matchesSearch =
+          query.isEmpty || _searchableText(order).contains(query);
 
       return matchesFilter && matchesSearch;
     }).toList();
@@ -139,6 +143,12 @@ class _AdminOrdersPageState extends ConsumerState<AdminOrdersPage> {
         return order.status == OrderStatus.delivered;
       case 'Cancelados':
         return order.status == OrderStatus.cancelled;
+      case 'Delivery':
+        return order.deliveryType == DeliveryType.delivery;
+      case 'Retirada':
+        return order.deliveryType == DeliveryType.pickup;
+      case 'Presencial':
+        return order.deliveryType == DeliveryType.dineIn;
       case 'Todos':
       default:
         return true;
@@ -160,6 +170,8 @@ class _AdminOrdersPageState extends ConsumerState<AdminOrdersPage> {
         address?.city ?? '',
         address?.reference ?? '',
         address?.complement ?? '',
+        order.tableNumber == null ? '' : 'mesa ${order.tableNumber}',
+        order.tableSessionId ?? '',
       ].join(' '),
     );
   }
@@ -186,7 +198,8 @@ class _AdminOrdersPageState extends ConsumerState<AdminOrdersPage> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Pedido atualizado para ${_statusLabel(status)}.')),
+      SnackBar(
+          content: Text('Pedido atualizado para ${_statusLabel(status)}.')),
     );
   }
 }
@@ -427,8 +440,7 @@ class _OrderAdminCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color:
-                isNew ? const Color(0x1FD7A552) : const Color(0x12000000),
+            color: isNew ? const Color(0x1FD7A552) : const Color(0x12000000),
             blurRadius: isNew ? 22 : 16,
             offset: const Offset(0, 8),
           ),
@@ -460,6 +472,8 @@ class _OrderAdminCard extends StatelessWidget {
                     _OrderNotes(notes: order.notes),
                     if (order.deliveryType == DeliveryType.delivery)
                       _OrderAddress(address: order.address),
+                    if (order.deliveryType == DeliveryType.dineIn)
+                      _OrderTableInfo(order: order),
                     const SizedBox(height: 16),
                     _OrderActions(
                       order: order,
@@ -606,9 +620,7 @@ class _OrderMetaRow extends StatelessWidget {
       runSpacing: 8,
       children: [
         _MetaPill(
-          icon: order.deliveryType == DeliveryType.delivery
-              ? Icons.delivery_dining_outlined
-              : Icons.storefront_outlined,
+          icon: _deliveryTypeIcon(order.deliveryType),
           label: _deliveryTypeLabel(order.deliveryType),
         ),
         _MetaPill(
@@ -642,7 +654,8 @@ class _MetaPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = emphasized ? const Color(0xFF7B2E1F) : const Color(0xFF5C4840);
+    final color =
+        emphasized ? const Color(0xFF7B2E1F) : const Color(0xFF5C4840);
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 210),
@@ -812,6 +825,31 @@ class _OrderAddress extends StatelessWidget {
         icon: Icons.location_on_outlined,
         title: 'Endereço de entrega',
         body: value,
+      ),
+    );
+  }
+}
+
+class _OrderTableInfo extends StatelessWidget {
+  const _OrderTableInfo({required this.order});
+
+  final OrderModel order;
+
+  @override
+  Widget build(BuildContext context) {
+    final tableLabel = order.tableNumber == null
+        ? 'Mesa não informada'
+        : 'Mesa ${order.tableNumber}';
+    final sessionLabel = (order.tableSessionId ?? '').isEmpty
+        ? ''
+        : '\nComanda: ${order.tableSessionId}';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: _InfoBlock(
+        icon: Icons.table_restaurant_outlined,
+        title: 'Consumo no local',
+        body: '$tableLabel$sessionLabel',
       ),
     );
   }
@@ -1065,11 +1103,26 @@ String _deliveryTypeLabel(DeliveryType type) {
       return 'Entrega';
     case DeliveryType.pickup:
       return 'Retirada';
+    case DeliveryType.dineIn:
+      return 'Consumo no local';
+  }
+}
+
+IconData _deliveryTypeIcon(DeliveryType type) {
+  switch (type) {
+    case DeliveryType.delivery:
+      return Icons.delivery_dining_outlined;
+    case DeliveryType.pickup:
+      return Icons.storefront_outlined;
+    case DeliveryType.dineIn:
+      return Icons.table_restaurant_outlined;
   }
 }
 
 String _paymentMethodLabel(PaymentMethod method) {
   switch (method) {
+    case PaymentMethod.notSelected:
+      return 'A definir';
     case PaymentMethod.pix:
       return 'PIX';
     case PaymentMethod.cash:
@@ -1089,6 +1142,8 @@ String _paymentStatusLabel(PaymentStatus status) {
   switch (status) {
     case PaymentStatus.pending:
       return 'Pagamento pendente';
+    case PaymentStatus.paid:
+      return 'Pago';
     case PaymentStatus.approved:
       return 'Pagamento aprovado';
     case PaymentStatus.rejected:

@@ -18,6 +18,12 @@ abstract final class AppTheme {
   static const Color surface = Color(0xFFF8F3EC);
   static const Color success = Color(0xFF2E7D4F);
   static const Color warning = Color(0xFFE6A12A);
+  static const Color darkSurface = Color(0xFF1D120F);
+  static const Color darkCard = Color(0xFF2A1A16);
+  static const Color darkCardSoft = Color(0xFF34211C);
+  static const Color darkText = Color(0xFFF8F3EC);
+  static const Color darkMuted = Color(0xFFD8C6B8);
+  static const Color darkLine = Color(0xFF4A312A);
 
   static ThemeData get light {
     final base = ThemeData(
@@ -170,6 +176,164 @@ abstract final class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: line),
+        ),
+      ),
+    );
+  }
+
+  static ThemeData get dark {
+    final base = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: gold,
+        brightness: Brightness.dark,
+        primary: deepRed,
+        secondary: gold,
+        surface: darkSurface,
+        onPrimary: warmWhite,
+        onSurface: darkText,
+      ),
+      scaffoldBackgroundColor: darkSurface,
+      visualDensity: VisualDensity.adaptivePlatformDensity,
+    );
+
+    return base.copyWith(
+      textTheme: GoogleFonts.interTextTheme(base.textTheme).copyWith(
+        headlineLarge: GoogleFonts.playfairDisplay(
+          fontWeight: FontWeight.w900,
+          color: darkText,
+          height: 1.05,
+        ),
+        headlineMedium: GoogleFonts.playfairDisplay(
+          fontWeight: FontWeight.w900,
+          color: darkText,
+          height: 1.08,
+        ),
+        titleLarge: GoogleFonts.playfairDisplay(
+          fontWeight: FontWeight.w800,
+          color: darkText,
+          height: 1.1,
+        ),
+        titleMedium: GoogleFonts.inter(
+          fontWeight: FontWeight.w800,
+          color: darkText,
+        ),
+        bodyMedium: GoogleFonts.inter(color: darkText, height: 1.35),
+        bodySmall: GoogleFonts.inter(color: darkMuted, height: 1.35),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: darkSurface,
+        foregroundColor: darkText,
+        centerTitle: false,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: deepRed,
+          foregroundColor: warmWhite,
+          disabledBackgroundColor: darkLine,
+          disabledForegroundColor: darkMuted,
+          minimumSize: const Size.fromHeight(54),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 15,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: gold,
+          minimumSize: const Size.fromHeight(52),
+          side: const BorderSide(color: darkLine),
+          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: darkCard,
+        labelStyle: const TextStyle(color: darkMuted),
+        hintStyle: const TextStyle(color: darkMuted),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: darkLine),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: darkLine),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: gold, width: 1.4),
+        ),
+      ),
+      chipTheme: base.chipTheme.copyWith(
+        backgroundColor: darkCard,
+        selectedColor: deepRed,
+        side: const BorderSide(color: darkLine),
+        labelStyle: const TextStyle(
+          color: darkText,
+          fontWeight: FontWeight.w700,
+        ),
+        secondaryLabelStyle: const TextStyle(
+          color: warmWhite,
+          fontWeight: FontWeight.w800,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+        ),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: deepRed,
+        foregroundColor: warmWhite,
+        elevation: 8,
+      ),
+      dividerTheme: const DividerThemeData(
+        color: darkLine,
+        thickness: 1,
+        space: 32,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: darkCardSoft,
+        contentTextStyle: const TextStyle(color: darkText),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: SegmentedButton.styleFrom(
+          backgroundColor: darkCard,
+          selectedBackgroundColor: darkCardSoft,
+          selectedForegroundColor: gold,
+          foregroundColor: darkMuted,
+          side: const BorderSide(color: darkLine),
+          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: darkCard,
+        elevation: 0,
+        shadowColor: Colors.black.withOpacity(0.18),
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: darkLine),
         ),
       ),
     );

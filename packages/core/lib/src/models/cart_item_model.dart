@@ -2,10 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:rayssa_core/src/models/product_model.dart';
 
 class CartItemModel extends Equatable {
-  const CartItemModel({
-    required this.product,
-    required this.quantity,
-  });
+  const CartItemModel({required this.product, required this.quantity});
 
   final ProductModel product;
   final int quantity;

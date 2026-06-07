@@ -77,9 +77,7 @@ class CategoriesPage extends ConsumerWidget {
                             DataCell(Text('${category.sortOrder}')),
                             DataCell(
                               Icon(
-                                category.isActive
-                                    ? Icons.check
-                                    : Icons.close,
+                                category.isActive ? Icons.check : Icons.close,
                               ),
                             ),
                             DataCell(

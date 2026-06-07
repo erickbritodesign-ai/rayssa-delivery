@@ -71,9 +71,7 @@ class _OrderCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Icon(
-                  cancelled
-                      ? Icons.cancel_outlined
-                      : Icons.bakery_dining,
+                  cancelled ? Icons.cancel_outlined : Icons.bakery_dining,
                   color: cancelled ? AppTheme.muted : AppTheme.primaryRed,
                 ),
               ),

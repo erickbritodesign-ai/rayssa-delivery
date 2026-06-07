@@ -4,16 +4,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:rayssa_client/core/theme/app_theme.dart';
+import 'package:rayssa_client/core/theme/theme_mode_controller.dart';
 import 'package:rayssa_client/core/widgets/ray_brand.dart';
 import 'package:rayssa_client/features/auth/presentation/providers/auth_providers.dart';
 import 'package:rayssa_client/features/orders/presentation/providers/order_providers.dart';
 import 'package:rayssa_core/rayssa_core.dart';
 
-class ProfilePage extends ConsumerWidget {
-  const ProfilePage({super.key});
+class ProfilePage extends ConsumerStatefulWidget {
+  const ProfilePage({this.showAccessDeniedMessage = false, super.key});
+
+  final bool showAccessDeniedMessage;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends ConsumerState<ProfilePage> {
+  bool _accessMessageShown = false;
+
+  @override
+  Widget build(BuildContext context) {
     final userAsync = ref.watch(currentUserProvider);
     final ordersAsync = ref.watch(userOrdersProvider);
 
@@ -25,12 +35,20 @@ class ProfilePage extends ConsumerWidget {
             return const Center(child: Text('Usuário não encontrado.'));
           }
 
+          _showAccessDeniedMessageIfNeeded();
+
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
             children: [
               _ProfileHeader(user: user),
               const SizedBox(height: 14),
+              const _ThemeModeCard(),
+              const SizedBox(height: 14),
               _LoyaltyCard(points: user.loyaltyPoints),
+              if (user.canAccessTableService) ...[
+                const SizedBox(height: 14),
+                _ServiceModeCard(onTap: () => context.push('/tables')),
+              ],
               const SizedBox(height: 14),
               _OrdersHistory(
                 ordersAsync: ordersAsync,
@@ -59,6 +77,18 @@ class ProfilePage extends ConsumerWidget {
   Future<void> _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     if (context.mounted) context.go('/login');
+  }
+
+  void _showAccessDeniedMessageIfNeeded() {
+    if (!widget.showAccessDeniedMessage || _accessMessageShown) return;
+    _accessMessageShown = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Acesso restrito a funcionários.')),
+      );
+    });
   }
 }
 
@@ -124,6 +154,92 @@ class _ProfileHeader extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ThemeModeCard extends ConsumerWidget {
+  const _ThemeModeCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(darkThemeEnabledProvider);
+
+    return Card(
+      child: SwitchListTile.adaptive(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        secondary: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: enabled ? AppTheme.darkCardSoft : AppTheme.cream,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            enabled ? Icons.dark_mode : Icons.light_mode,
+            color: enabled ? AppTheme.gold : AppTheme.primaryRed,
+          ),
+        ),
+        title: const Text('Tema escuro'),
+        subtitle: const Text('Visual premium para usar à noite.'),
+        value: enabled,
+        onChanged: (value) {
+          ref.read(darkThemeEnabledProvider.notifier).state = value;
+        },
+      ),
+    );
+  }
+}
+
+class _ServiceModeCard extends StatelessWidget {
+  const _ServiceModeCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.cream,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.table_restaurant_outlined,
+                  color: AppTheme.primaryRed,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Modo Atendimento',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Abrir mesas, montar comandas e fechar conta.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppTheme.muted),
+            ],
+          ),
+        ),
       ),
     );
   }

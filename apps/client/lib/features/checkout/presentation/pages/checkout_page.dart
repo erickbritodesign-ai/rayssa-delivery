@@ -11,6 +11,7 @@ import 'package:rayssa_client/features/auth/presentation/providers/auth_provider
 import 'package:rayssa_client/features/cart/presentation/providers/cart_providers.dart';
 import 'package:rayssa_client/features/checkout/domain/models/delivery_area.dart';
 import 'package:rayssa_client/features/checkout/presentation/providers/checkout_providers.dart';
+import 'package:rayssa_client/features/tables/presentation/providers/table_providers.dart';
 import 'package:rayssa_core/rayssa_core.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
@@ -27,6 +28,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _notesController = TextEditingController();
 
   DeliveryArea? _selectedArea;
+  TableModel? _selectedTable;
   _PaymentSelection? _selectedPayment;
 
   @override
@@ -52,6 +54,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final deliveryType = ref.read(deliveryTypeProvider);
     if (!_validateDelivery(deliveryType)) return;
 
+    if (deliveryType == DeliveryType.dineIn) {
+      await _submitDineIn();
+      return;
+    }
+
     final payment = _selectedPayment;
     if (payment == null) {
       await _openPaymentSheet();
@@ -63,6 +70,23 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   bool _validateDelivery(DeliveryType deliveryType) {
     if (deliveryType == DeliveryType.pickup) return true;
+
+    if (deliveryType == DeliveryType.dineIn) {
+      final user = ref.read(currentUserProvider).valueOrNull;
+      if (user?.canAccessDineIn != true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Acesso restrito a funcionários.')),
+        );
+        return false;
+      }
+
+      if (_selectedTable != null) return true;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione a mesa da comanda.')),
+      );
+      return false;
+    }
 
     final street = _streetController.text.trim();
     final number = _numberController.text.trim();
@@ -104,6 +128,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   Future<void> _submit(_PaymentSelection payment) async {
     final deliveryType = ref.read(deliveryTypeProvider);
     final deliveryFee = ref.read(deliveryFeeProvider);
+    final orderTotal = ref.read(checkoutTotalProvider);
     AddressModel? address;
 
     if (deliveryType == DeliveryType.delivery) {
@@ -143,14 +168,52 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     if (payment.method == PaymentMethod.pixApp) {
-      await _showPixConfirmation(orderId);
+      await _showPixConfirmation(orderId, orderTotal);
     }
 
     if (mounted) context.go('/orders/$orderId');
   }
 
-  Future<void> _showPixConfirmation(String orderId) async {
-    final total = ref.read(checkoutTotalProvider);
+  Future<void> _submitDineIn() async {
+    final table = _selectedTable;
+    if (table == null) return;
+
+    final user = ref.read(currentUserProvider).valueOrNull;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Usuário não autenticado.')),
+      );
+      return;
+    }
+
+    try {
+      await ref.read(tableServiceProvider).addItemsToTable(
+            table: table,
+            cartItems: ref.read(cartControllerProvider),
+            openedByUserId: user.id,
+            openedByName: user.name.trim().isEmpty ? 'Atendente' : user.name,
+            notes: _notesController.text.trim().isEmpty
+                ? null
+                : _notesController.text.trim(),
+          );
+
+      ref.read(cartControllerProvider.notifier).clear();
+      ref.read(deliveryTypeProvider.notifier).state = DeliveryType.delivery;
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Comanda da ${table.name} atualizada.')),
+      );
+      context.go('/tables/${table.id}');
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Falha ao salvar comanda: $error')),
+      );
+    }
+  }
+
+  Future<void> _showPixConfirmation(String orderId, double total) async {
     final currency = NumberFormat.simpleCurrency(locale: 'pt_BR');
 
     await showDialog<void>(
@@ -176,7 +239,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               child: const Text('Copiar chave Pix'),
             ),
             FilledButton(
-              onPressed: () => _openWhatsAppProof(orderId),
+              onPressed: () => _openWhatsAppProof(orderId, total),
               child: const Text('Enviar comprovante'),
             ),
           ],
@@ -203,7 +266,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     );
   }
 
-  Future<void> _openWhatsAppProof(String orderId) async {
+  Future<void> _openWhatsAppProof(String orderId, double total) async {
     final phone = RayPaymentConfig.whatsappNumber.trim();
     if (phone.isEmpty || phone.contains('TODO')) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -218,7 +281,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final customerName = user?.name.trim();
     final safeCustomerName =
         customerName == null || customerName.isEmpty ? 'Cliente' : customerName;
-    final total = ref.read(checkoutTotalProvider);
     final currency = NumberFormat.simpleCurrency(locale: 'pt_BR');
     final message = [
       'Olá, Ray! Segue o comprovante do pedido #${_shortOrderId(orderId)}.',
@@ -244,7 +306,22 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final total = ref.watch(checkoutTotalProvider);
     final deliveryType = ref.watch(deliveryTypeProvider);
     final checkoutState = ref.watch(checkoutControllerProvider);
+    final tablesAsync = ref.watch(tablesProvider);
+    final currentUser = ref.watch(currentUserProvider).valueOrNull;
+    final canAccessDineIn = currentUser?.canAccessDineIn ?? false;
+    final visibleDeliveryType =
+        !canAccessDineIn && deliveryType == DeliveryType.dineIn
+            ? DeliveryType.delivery
+            : deliveryType;
     final currency = NumberFormat.simpleCurrency(locale: 'pt_BR');
+
+    if (!canAccessDineIn && deliveryType == DeliveryType.dineIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(deliveryTypeProvider.notifier).state = DeliveryType.delivery;
+        setState(() => _selectedTable = null);
+      });
+    }
 
     if (items.isEmpty) {
       return Scaffold(
@@ -264,26 +341,23 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           _CheckoutSection(
             icon: Icons.delivery_dining,
             title: 'Como você quer receber?',
-            child: SegmentedButton<DeliveryType>(
-              segments: const [
-                ButtonSegment(
-                  value: DeliveryType.delivery,
-                  icon: Icon(Icons.delivery_dining),
-                  label: Text('Entrega'),
-                ),
-                ButtonSegment(
-                  value: DeliveryType.pickup,
-                  icon: Icon(Icons.storefront),
-                  label: Text('Retirada'),
-                ),
-              ],
-              selected: {deliveryType},
-              onSelectionChanged: (value) {
-                ref.read(deliveryTypeProvider.notifier).state = value.first;
+            child: _ReceiveTypeSelector(
+              selected: visibleDeliveryType,
+              canAccessDineIn: canAccessDineIn,
+              onSelected: (type) {
+                setState(() {
+                  _selectedPayment = null;
+                  if (type != DeliveryType.delivery) _selectedArea = null;
+                  if (type != DeliveryType.dineIn) _selectedTable = null;
+                });
+                ref.read(deliveryTypeProvider.notifier).state = type;
+                if (type != DeliveryType.delivery) {
+                  ref.read(selectedDeliveryAreaProvider.notifier).state = null;
+                }
               },
             ),
           ),
-          if (deliveryType == DeliveryType.delivery)
+          if (visibleDeliveryType == DeliveryType.delivery)
             _CheckoutSection(
               icon: Icons.location_on_outlined,
               title: 'Endereço de entrega',
@@ -335,6 +409,50 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ],
               ),
             ),
+          if (visibleDeliveryType == DeliveryType.dineIn)
+            _CheckoutSection(
+              icon: Icons.table_restaurant_outlined,
+              title: 'Mesa da comanda',
+              child: tablesAsync.when(
+                data: (tables) {
+                  TableModel? selectedTable;
+                  for (final table in tables) {
+                    if (table.id == _selectedTable?.id) {
+                      selectedTable = table;
+                      break;
+                    }
+                  }
+
+                  return DropdownButtonFormField<TableModel>(
+                    value: selectedTable,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Selecione a mesa',
+                      prefixIcon: Icon(Icons.table_bar_outlined),
+                    ),
+                    items: tables
+                        .map(
+                          (table) => DropdownMenuItem(
+                            value: table,
+                            child: Text(
+                              '${table.name} • ${table.status.label}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (table) {
+                      setState(() => _selectedTable = table);
+                    },
+                  );
+                },
+                loading: () => const LinearProgressIndicator(),
+                error: (error, _) => Text(
+                  'Falha ao carregar mesas: $error',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            ),
           _CheckoutSection(
             icon: Icons.edit_note,
             title: 'Observações para a Ray',
@@ -348,20 +466,22 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               ),
             ),
           ),
-          _CheckoutSection(
-            icon: Icons.payments_outlined,
-            title: 'Pagamento',
-            child: _PaymentSummary(
-              selection: _selectedPayment,
-              onChange: _openPaymentSheet,
+          if (visibleDeliveryType != DeliveryType.dineIn)
+            _CheckoutSection(
+              icon: Icons.payments_outlined,
+              title: 'Pagamento',
+              child: _PaymentSummary(
+                selection: _selectedPayment,
+                onChange: _openPaymentSheet,
+              ),
             ),
-          ),
           _CheckoutSection(
             icon: Icons.receipt_long_outlined,
             title: 'Conferência do pedido',
             child: Column(
               children: [
-                _SummaryRow(label: 'Subtotal', value: currency.format(subtotal)),
+                _SummaryRow(
+                    label: 'Subtotal', value: currency.format(subtotal)),
                 const SizedBox(height: 8),
                 _SummaryRow(
                   label: 'Taxa de entrega',
@@ -378,8 +498,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           ),
           const SizedBox(height: 4),
           ElevatedButton.icon(
-            onPressed:
-                checkoutState.isLoading ? null : _handlePrimaryAction,
+            onPressed: checkoutState.isLoading ? null : _handlePrimaryAction,
             icon: checkoutState.isLoading
                 ? const SizedBox(
                     width: 18,
@@ -390,7 +509,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     ? Icons.check_circle_outline
                     : Icons.payments_outlined),
             label: Text(
-              hasPayment ? 'Confirmar pedido' : 'Escolher método de pagamento',
+              visibleDeliveryType == DeliveryType.dineIn
+                  ? 'Enviar para comanda'
+                  : hasPayment
+                      ? 'Confirmar pedido'
+                      : 'Escolher método de pagamento',
             ),
           ),
           const SizedBox(height: 10),
@@ -415,6 +538,101 @@ class _PaymentSelection {
   final PaymentMethod method;
   final bool needsChange;
   final double? changeFor;
+}
+
+class _ReceiveTypeSelector extends StatelessWidget {
+  const _ReceiveTypeSelector({
+    required this.selected,
+    required this.canAccessDineIn,
+    required this.onSelected,
+  });
+
+  final DeliveryType selected;
+  final bool canAccessDineIn;
+  final ValueChanged<DeliveryType> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final options = [
+      (DeliveryType.delivery, Icons.delivery_dining, 'Delivery'),
+      (DeliveryType.pickup, Icons.storefront, 'Retirada'),
+      if (canAccessDineIn)
+        (DeliveryType.dineIn, Icons.table_restaurant, 'Consumir no local'),
+    ];
+
+    return Column(
+      children: [
+        for (final option in options) ...[
+          _ReceiveTypeTile(
+            icon: option.$2,
+            label: option.$3,
+            selected: selected == option.$1,
+            onTap: () => onSelected(option.$1),
+          ),
+          if (option != options.last) const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+}
+
+class _ReceiveTypeTile extends StatelessWidget {
+  const _ReceiveTypeTile({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final accent = dark ? colors.secondary : colors.primary;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: selected
+              ? (dark ? AppTheme.darkCardSoft : AppTheme.blush)
+              : (dark ? AppTheme.darkCard : AppTheme.warmWhite),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? accent : colors.outlineVariant,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color:
+                  selected ? accent : colors.onSurface.withOpacity(0.62),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: selected ? accent : colors.onSurface,
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+            ),
+            if (selected)
+              Icon(Icons.check_circle, color: accent),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _PaymentSheet extends StatefulWidget {
@@ -484,15 +702,27 @@ class _PaymentSheetState extends State<_PaymentSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return SafeArea(
       top: false,
       child: Container(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * 0.88,
         ),
-        decoration: const BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+          border: Border(top: BorderSide(color: colors.outlineVariant)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(
+                Theme.of(context).brightness == Brightness.dark ? 0.38 : 0.12,
+              ),
+              blurRadius: 24,
+              offset: const Offset(0, -10),
+            ),
+          ],
         ),
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
@@ -509,7 +739,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                   width: 42,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppTheme.line,
+                    color: colors.outlineVariant,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -517,12 +747,16 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               const SizedBox(height: 18),
               Text(
                 'Método de pagamento',
-                style: Theme.of(context).textTheme.titleLarge,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: colors.onSurface,
+                    ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Escolha como deseja pagar o pedido de ${widget.totalLabel}.',
-                style: Theme.of(context).textTheme.bodySmall,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurface.withOpacity(0.72),
+                    ),
               ),
               const SizedBox(height: 16),
               _PaymentOption(
@@ -545,8 +779,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                 title: 'Cartão de crédito na entrega',
                 subtitle: 'Pagamento na maquininha.',
                 selected: _method == PaymentMethod.creditCard,
-                onTap: () =>
-                    setState(() => _method = PaymentMethod.creditCard),
+                onTap: () => setState(() => _method = PaymentMethod.creditCard),
               ),
               _PaymentOption(
                 icon: Icons.credit_card,
@@ -619,9 +852,23 @@ class _PaymentOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final accent = dark ? colors.secondary : colors.primary;
+    final background = selected
+        ? (dark ? AppTheme.darkCardSoft : AppTheme.blush)
+        : (dark ? AppTheme.darkCard : AppTheme.warmWhite);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
-      color: selected ? AppTheme.blush : AppTheme.warmWhite,
+      color: background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: selected ? accent : colors.outlineVariant,
+          width: selected ? 1.2 : 1,
+        ),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
@@ -633,12 +880,16 @@ class _PaymentOption extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: selected ? AppTheme.primaryRed : AppTheme.cream,
+                  color: selected
+                      ? accent
+                      : (dark ? AppTheme.darkCardSoft : AppTheme.cream),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   icon,
-                  color: selected ? AppTheme.warmWhite : AppTheme.primaryRed,
+                  color: selected
+                      ? (dark ? AppTheme.ink : colors.onPrimary)
+                      : accent,
                   size: 20,
                 ),
               ),
@@ -647,13 +898,20 @@ class _PaymentOption extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: Theme.of(context).textTheme.titleSmall),
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: colors.onSurface,
+                          ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colors.onSurface.withOpacity(0.68),
+                          ),
                     ),
                   ],
                 ),
@@ -661,6 +919,11 @@ class _PaymentOption extends StatelessWidget {
               Radio<bool>(
                 value: true,
                 groupValue: selected,
+                activeColor: accent,
+                fillColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) return accent;
+                  return colors.onSurface.withOpacity(0.62);
+                }),
                 onChanged: (_) => onTap(),
               ),
             ],
@@ -684,19 +947,28 @@ class _ChangeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.warmWhite,
+        color: dark ? AppTheme.darkCard : AppTheme.warmWhite,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.line),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         children: [
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Precisa de troco?'),
+            activeColor: colors.secondary,
+            title: Text(
+              'Precisa de troco?',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: colors.onSurface,
+                  ),
+            ),
             value: needsChange,
             onChanged: onChanged,
           ),
@@ -892,6 +1164,10 @@ class _CheckoutSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final accent = dark ? colors.secondary : colors.primary;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
       child: Padding(
@@ -905,10 +1181,10 @@ class _CheckoutSection extends StatelessWidget {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: AppTheme.cream,
+                    color: dark ? AppTheme.darkCardSoft : AppTheme.cream,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(icon, color: AppTheme.primaryRed, size: 20),
+                  child: Icon(icon, color: accent, size: 20),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -941,9 +1217,11 @@ class _SummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final style = emphasized
         ? Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppTheme.deepRed,
+              color: dark ? colors.secondary : AppTheme.deepRed,
               fontWeight: FontWeight.w900,
             )
         : Theme.of(context).textTheme.bodyMedium;

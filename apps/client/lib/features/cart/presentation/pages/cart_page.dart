@@ -76,6 +76,9 @@ class _CartItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -118,7 +121,7 @@ class _CartItemCard extends StatelessWidget {
                       Text(
                         subtotal,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              color: AppTheme.deepRed,
+                              color: dark ? colors.secondary : AppTheme.deepRed,
                               fontWeight: FontWeight.w900,
                             ),
                       ),
@@ -174,6 +177,9 @@ class _QuantityButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
     return SizedBox(
       width: 34,
       height: 34,
@@ -181,8 +187,8 @@ class _QuantityButton extends StatelessWidget {
         padding: EdgeInsets.zero,
         onPressed: onPressed,
         style: IconButton.styleFrom(
-          backgroundColor: AppTheme.cream,
-          foregroundColor: AppTheme.primaryRed,
+          backgroundColor: dark ? AppTheme.darkCardSoft : AppTheme.cream,
+          foregroundColor: dark ? colors.secondary : colors.primary,
         ),
         icon: Icon(icon, size: 18),
       ),
@@ -198,34 +204,60 @@ class _CartSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
     return SafeArea(
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-        decoration: const BoxDecoration(
-          color: AppTheme.warmWhite,
-          border: Border(top: BorderSide(color: AppTheme.line)),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          border: Border(top: BorderSide(color: colors.outlineVariant)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(dark ? 0.36 : 0.08),
+              blurRadius: 18,
+              offset: const Offset(0, -8),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
-                Text('Subtotal', style: Theme.of(context).textTheme.bodyMedium),
+                Text(
+                  'Subtotal',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colors.onSurface,
+                      ),
+                ),
                 const Spacer(),
-                Text(subtotal, style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  subtotal,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: dark ? colors.secondary : colors.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
               ],
             ),
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.verified_outlined,
-                    color: AppTheme.success, size: 16),
+                Icon(
+                  Icons.verified_outlined,
+                  color: dark ? colors.secondary : AppTheme.success,
+                  size: 16,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     'Confira tudo antes de enviar o pedido para a cozinha.',
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.onSurface.withOpacity(0.72),
+                        ),
                   ),
                 ),
               ],

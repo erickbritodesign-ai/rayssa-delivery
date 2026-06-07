@@ -24,6 +24,14 @@ class AuthStateListenable extends ChangeNotifier {
     final user = _ref.read(currentUserProvider).valueOrNull;
     return user != null;
   }
+
+  UserModel? get currentUser {
+    return _ref.read(currentUserProvider).valueOrNull;
+  }
+
+  bool get canAccessTableService {
+    return currentUser?.canAccessTableService ?? false;
+  }
 }
 
 final authStateProvider = Provider<AuthStateListenable>((ref) {

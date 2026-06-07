@@ -25,8 +25,7 @@ class AddressModel extends Equatable {
   final String label;
   final double? deliveryFee;
 
-  String get formatted =>
-      '$street, $number - $neighborhood, $city/$state';
+  String get formatted => '$street, $number - $neighborhood, $city/$state';
 
   factory AddressModel.fromMap(Map<String, dynamic> map) {
     return AddressModel(
@@ -60,15 +59,15 @@ class AddressModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        street,
-        number,
-        neighborhood,
-        city,
-        state,
-        zipCode,
-        complement,
-        reference,
-        label,
-        deliveryFee,
-      ];
+    street,
+    number,
+    neighborhood,
+    city,
+    state,
+    zipCode,
+    complement,
+    reference,
+    label,
+    deliveryFee,
+  ];
 }

@@ -1,6 +1,7 @@
 enum DeliveryType {
   delivery('delivery', 'Entrega'),
-  pickup('pickup', 'Retirada no local');
+  pickup('pickup', 'Retirada no local'),
+  dineIn('dineIn', 'Consumir no local');
 
   const DeliveryType(this.value, this.label);
   final String value;

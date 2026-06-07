@@ -23,6 +23,9 @@ class UserModel extends Equatable {
   final int loyaltyPoints;
   final DateTime? createdAt;
 
+  bool get canAccessTableService => role.canAccessTableService;
+  bool get canAccessDineIn => role.canAccessDineIn;
+
   factory UserModel.fromFirestore(String id, Map<String, dynamic> data) {
     final addressesRaw = data['addresses'] as List<dynamic>? ?? [];
     final loyaltyRaw = data['loyaltyPoints'] ?? data['points'];
@@ -54,15 +57,15 @@ class UserModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        name,
-        email,
-        phone,
-        role,
-        addresses,
-        loyaltyPoints,
-        createdAt,
-      ];
+    id,
+    name,
+    email,
+    phone,
+    role,
+    addresses,
+    loyaltyPoints,
+    createdAt,
+  ];
 }
 
 DateTime? _timestampToDate(dynamic value) {

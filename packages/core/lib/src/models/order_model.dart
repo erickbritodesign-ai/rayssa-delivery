@@ -21,6 +21,10 @@ class OrderModel extends Equatable {
     this.address,
     this.notes,
     this.changeFor,
+    this.tableId,
+    this.tableNumber,
+    this.tableSessionId,
+    this.dineInStatus,
     this.mercadoPagoPaymentId,
     this.createdAt,
     this.updatedAt,
@@ -39,6 +43,10 @@ class OrderModel extends Equatable {
   final AddressModel? address;
   final String? notes;
   final double? changeFor;
+  final String? tableId;
+  final int? tableNumber;
+  final String? tableSessionId;
+  final String? dineInStatus;
   final String? mercadoPagoPaymentId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -56,12 +64,19 @@ class OrderModel extends Equatable {
       deliveryFee: (data['deliveryFee'] as num?)?.toDouble() ?? 0,
       total: (data['total'] as num?)?.toDouble() ?? 0,
       status: OrderStatus.fromString(data['status'] as String?),
-      deliveryType: DeliveryType.fromString(data['deliveryType'] as String?),
+      deliveryType: DeliveryType.fromString(
+        (data['orderType'] ?? data['fulfillmentType'] ?? data['deliveryType'])
+            as String?,
+      ),
       paymentMethod: PaymentMethod.fromString(data['paymentMethod'] as String?),
       paymentStatus: PaymentStatus.fromString(data['paymentStatus'] as String?),
       address: addressRaw != null ? AddressModel.fromMap(addressRaw) : null,
       notes: data['notes'] as String?,
       changeFor: (data['changeFor'] as num?)?.toDouble(),
+      tableId: data['tableId'] as String?,
+      tableNumber: (data['tableNumber'] as num?)?.toInt(),
+      tableSessionId: data['tableSessionId'] as String?,
+      dineInStatus: data['dineInStatus'] as String?,
       mercadoPagoPaymentId: data['mercadoPagoPaymentId'] as String?,
       createdAt: _timestampToDate(data['createdAt']),
       updatedAt: _timestampToDate(data['updatedAt']),
@@ -77,11 +92,17 @@ class OrderModel extends Equatable {
       'total': total,
       'status': status.value,
       'deliveryType': deliveryType.value,
+      'orderType': deliveryType.value,
+      'fulfillmentType': deliveryType.value,
       'paymentMethod': paymentMethod.value,
       'paymentStatus': paymentStatus.value,
       'address': address?.toMap(),
       'notes': notes,
       'changeFor': changeFor,
+      'tableId': tableId,
+      'tableNumber': tableNumber,
+      'tableSessionId': tableSessionId,
+      'dineInStatus': dineInStatus,
       'mercadoPagoPaymentId': mercadoPagoPaymentId,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
@@ -90,23 +111,27 @@ class OrderModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        userId,
-        items,
-        subtotal,
-        deliveryFee,
-        total,
-        status,
-        deliveryType,
-        paymentMethod,
-        paymentStatus,
-        address,
-        notes,
-        changeFor,
-        mercadoPagoPaymentId,
-        createdAt,
-        updatedAt,
-      ];
+    id,
+    userId,
+    items,
+    subtotal,
+    deliveryFee,
+    total,
+    status,
+    deliveryType,
+    paymentMethod,
+    paymentStatus,
+    address,
+    notes,
+    changeFor,
+    tableId,
+    tableNumber,
+    tableSessionId,
+    dineInStatus,
+    mercadoPagoPaymentId,
+    createdAt,
+    updatedAt,
+  ];
 }
 
 DateTime? _timestampToDate(dynamic value) {
