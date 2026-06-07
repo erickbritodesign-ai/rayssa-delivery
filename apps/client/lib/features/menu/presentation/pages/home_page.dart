@@ -54,6 +54,11 @@ class _HomePageState extends ConsumerState<HomePage> {
             title: const RayBrandMark(size: 36, showWordmark: true),
             actions: [
               IconButton(
+                tooltip: 'Conta',
+                icon: const Icon(Icons.person_outline),
+                onPressed: () => context.push('/profile'),
+              ),
+              IconButton(
                 tooltip: 'Meus pedidos',
                 icon: const Icon(Icons.receipt_long_outlined),
                 onPressed: () => context.push('/orders'),
@@ -929,6 +934,10 @@ class _MenuProductTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final available = product.isAvailable && product.isActive;
     final fallbackPhoto = RayPhotos.fallbackForProduct(product);
+    final compact = MediaQuery.sizeOf(context).width < 380;
+    final imageWidth = compact ? 82.0 : 96.0;
+    final imageHeight = compact ? 96.0 : 108.0;
+    final addButtonSize = compact ? 40.0 : 42.0;
 
     return Container(
       padding: const EdgeInsets.all(10),
@@ -950,8 +959,8 @@ class _MenuProductTile extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(18),
             child: SizedBox(
-              width: 96,
-              height: 108,
+              width: imageWidth,
+              height: imageHeight,
               child: _PhotoSurface(
                 imageUrl: product.imageUrl,
                 photo: fallbackPhoto,
@@ -960,9 +969,10 @@ class _MenuProductTile extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: SizedBox(
-              height: 108,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: imageHeight),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -971,6 +981,7 @@ class _MenuProductTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w900,
+                          fontSize: compact ? 15 : null,
                         ),
                   ),
                   const SizedBox(height: 3),
@@ -978,26 +989,30 @@ class _MenuProductTile extends StatelessWidget {
                     product.description.isEmpty
                         ? 'Preparado com carinho na cozinha da Ray.'
                         : product.description,
-                    maxLines: 2,
+                    maxLines: compact ? 1 : 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  const Spacer(),
+                  const SizedBox(height: 10),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
                         child: Text(
                           price,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
                                     color: _secondaryRay,
                                     fontWeight: FontWeight.w900,
+                                    fontSize: compact ? 15 : null,
                                   ),
                         ),
                       ),
                       SizedBox(
-                        width: 42,
-                        height: 42,
+                        width: addButtonSize,
+                        height: addButtonSize,
                         child: IconButton.filled(
                           tooltip: 'Adicionar',
                           onPressed: available ? onAdd : null,

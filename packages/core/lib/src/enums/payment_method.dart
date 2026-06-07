@@ -1,7 +1,10 @@
 enum PaymentMethod {
   pix('pix', 'PIX'),
-  creditCard('credit_card', 'Cartão de crédito'),
-  debitCard('debit_card', 'Cartão de débito');
+  cash('cash', 'Dinheiro na entrega'),
+  creditCard('credit_card', 'Cartão de crédito na entrega'),
+  debitCard('debit_card', 'Cartão de débito na entrega'),
+  pixOnDelivery('pix_on_delivery', 'Pix na entrega'),
+  pixApp('pix_app', 'Pix pelo aplicativo');
 
   const PaymentMethod(this.value, this.label);
   final String value;

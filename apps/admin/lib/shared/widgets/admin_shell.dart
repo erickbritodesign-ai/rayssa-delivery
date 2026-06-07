@@ -11,12 +11,53 @@ class AdminShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).uri.path;
+    final selectedIndex = _indexForPath(location);
+    final isMobile = MediaQuery.sizeOf(context).width < 700;
+
+    if (isMobile) {
+      return Scaffold(
+        body: child,
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: selectedIndex,
+          onDestinationSelected: (index) {
+            context.go(_pathForIndex(index));
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Início',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.category_outlined),
+              selectedIcon: Icon(Icons.category),
+              label: 'Categoria',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.fastfood_outlined),
+              selectedIcon: Icon(Icons.fastfood),
+              label: 'Produtos',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.receipt_long_outlined),
+              selectedIcon: Icon(Icons.receipt_long),
+              label: 'Pedidos',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings),
+              label: 'Config.',
+            ),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       body: Row(
         children: [
           NavigationRail(
-            selectedIndex: _indexForPath(location),
+            selectedIndex: selectedIndex,
             onDestinationSelected: (index) {
               context.go(_pathForIndex(index));
             },
@@ -47,6 +88,7 @@ class AdminShell extends ConsumerWidget {
               child: Align(
                 alignment: Alignment.bottomCenter,
                 child: IconButton(
+                  tooltip: 'Sair',
                   icon: const Icon(Icons.logout),
                   onPressed: () =>
                       ref.read(adminAuthControllerProvider.notifier).signOut(),

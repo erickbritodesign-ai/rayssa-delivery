@@ -20,6 +20,7 @@ class OrderModel extends Equatable {
     required this.paymentStatus,
     this.address,
     this.notes,
+    this.changeFor,
     this.mercadoPagoPaymentId,
     this.createdAt,
     this.updatedAt,
@@ -37,6 +38,7 @@ class OrderModel extends Equatable {
   final PaymentStatus paymentStatus;
   final AddressModel? address;
   final String? notes;
+  final double? changeFor;
   final String? mercadoPagoPaymentId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -59,6 +61,7 @@ class OrderModel extends Equatable {
       paymentStatus: PaymentStatus.fromString(data['paymentStatus'] as String?),
       address: addressRaw != null ? AddressModel.fromMap(addressRaw) : null,
       notes: data['notes'] as String?,
+      changeFor: (data['changeFor'] as num?)?.toDouble(),
       mercadoPagoPaymentId: data['mercadoPagoPaymentId'] as String?,
       createdAt: _timestampToDate(data['createdAt']),
       updatedAt: _timestampToDate(data['updatedAt']),
@@ -78,6 +81,7 @@ class OrderModel extends Equatable {
       'paymentStatus': paymentStatus.value,
       'address': address?.toMap(),
       'notes': notes,
+      'changeFor': changeFor,
       'mercadoPagoPaymentId': mercadoPagoPaymentId,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
@@ -98,6 +102,7 @@ class OrderModel extends Equatable {
         paymentStatus,
         address,
         notes,
+        changeFor,
         mercadoPagoPaymentId,
         createdAt,
         updatedAt,

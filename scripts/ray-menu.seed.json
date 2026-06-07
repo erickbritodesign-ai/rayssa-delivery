@@ -1,0 +1,532 @@
+{
+  "categories": [
+    {
+      "id": "pasteis",
+      "name": "Pastéis",
+      "sortOrder": 1,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "salgados",
+      "name": "Salgados",
+      "sortOrder": 2,
+      "imageKey": "panqueca"
+    },
+    {
+      "id": "bebidas",
+      "name": "Bebidas",
+      "sortOrder": 3,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "caldo-de-cana",
+      "name": "Caldo de Cana",
+      "sortOrder": 4,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "doces",
+      "name": "Doces",
+      "sortOrder": 5,
+      "imageKey": "doce"
+    }
+  ],
+  "products": [
+    {
+      "id": "pastel-frango",
+      "categoryId": "pasteis",
+      "name": "Pastel de Frango",
+      "description": "Pastel artesanal de frango, frito na hora.",
+      "price": 12,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-carne",
+      "categoryId": "pasteis",
+      "name": "Pastel de Carne",
+      "description": "Pastel crocante com recheio de carne temperada.",
+      "price": 12,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-queijo",
+      "categoryId": "pasteis",
+      "name": "Pastel de Queijo",
+      "description": "Queijo derretido em massa crocante.",
+      "price": 12,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-presunto-queijo",
+      "categoryId": "pasteis",
+      "name": "Pastel de Presunto e Queijo",
+      "description": "Clássico recheado com presunto e queijo.",
+      "price": 12,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-banana-real",
+      "categoryId": "pasteis",
+      "name": "Pastel de Banana Real",
+      "description": "Pastel doce de banana com sabor caseiro.",
+      "price": 12,
+      "imageKey": "pastelMilho"
+    },
+    {
+      "id": "pastel-carne-seca",
+      "categoryId": "pasteis",
+      "name": "Pastel de Carne Seca",
+      "description": "Recheio de carne seca bem temperada.",
+      "price": 14,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-frango-queijo",
+      "categoryId": "pasteis",
+      "name": "Pastel de Frango com Queijo",
+      "description": "Frango da casa com queijo derretido.",
+      "price": 14,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-carne-queijo",
+      "categoryId": "pasteis",
+      "name": "Pastel de Carne com Queijo",
+      "description": "Carne temperada com queijo derretido.",
+      "price": 14,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-banana-queijo",
+      "categoryId": "pasteis",
+      "name": "Pastel de Banana com Queijo",
+      "description": "Banana e queijo em combinação artesanal.",
+      "price": 14,
+      "imageKey": "pastelMilho"
+    },
+    {
+      "id": "pastel-carne-seca-queijo",
+      "categoryId": "pasteis",
+      "name": "Pastel de Carne Seca com Queijo",
+      "description": "Carne seca com queijo em massa crocante.",
+      "price": 16,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-carne-seca-cremoso",
+      "categoryId": "pasteis",
+      "name": "Pastel de Carne Seca com Catupiry ou Cheddar",
+      "description": "Carne seca com recheio cremoso à escolha.",
+      "price": 16,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-carne-cremoso",
+      "categoryId": "pasteis",
+      "name": "Pastel de Carne com Catupiry ou Cheddar",
+      "description": "Carne temperada com recheio cremoso.",
+      "price": 16,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-frango-cremoso",
+      "categoryId": "pasteis",
+      "name": "Pastel de Frango com Catupiry ou Cheddar",
+      "description": "Frango artesanal com cremosidade extra.",
+      "price": 16,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-queijo-cremoso",
+      "categoryId": "pasteis",
+      "name": "Pastel de Queijo com Catupiry ou Cheddar",
+      "description": "Queijo com recheio cremoso à escolha.",
+      "price": 16,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-presunto-queijo-cremoso",
+      "categoryId": "pasteis",
+      "name": "Pastel de Presunto e Queijo com Catupiry ou Cheddar",
+      "description": "Presunto, queijo e cremosidade extra.",
+      "price": 16,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-misto",
+      "categoryId": "pasteis",
+      "name": "Pastel Misto",
+      "description": "Carne, frango, presunto e queijo.",
+      "price": 16,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-pizza",
+      "categoryId": "pasteis",
+      "name": "Pastel Pizza",
+      "description": "Presunto, queijo, calabresa e orégano.",
+      "price": 16,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-camarao",
+      "categoryId": "pasteis",
+      "name": "Pastel de Camarão",
+      "description": "Especial da Ray com recheio de camarão.",
+      "price": 18,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-camarao-cremoso",
+      "categoryId": "pasteis",
+      "name": "Pastel de Camarão com Queijo, Catupiry ou Cheddar",
+      "description": "Camarão com recheio cremoso à escolha.",
+      "price": 22,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-x-tudo",
+      "categoryId": "pasteis",
+      "name": "Pastel X-Tudo",
+      "description": "Carne, frango, presunto, queijo, calabresa, bacon e creme.",
+      "price": 22,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "pastel-doce-nutella",
+      "categoryId": "pasteis",
+      "name": "Pastel Doce de Nutella",
+      "description": "Pastel doce recheado com Nutella.",
+      "price": 15,
+      "imageKey": "pastelMilho"
+    },
+    {
+      "id": "pastel-doce-nutella-banana",
+      "categoryId": "pasteis",
+      "name": "Pastel Doce de Nutella com Banana",
+      "description": "Nutella com banana em massa crocante.",
+      "price": 15,
+      "imageKey": "pastelMilho"
+    },
+    {
+      "id": "pastel-doce-leite",
+      "categoryId": "pasteis",
+      "name": "Pastel Doce de Leite",
+      "description": "Recheio clássico de doce de leite.",
+      "price": 15,
+      "imageKey": "pastelMilho"
+    },
+    {
+      "id": "pastel-banoffee",
+      "categoryId": "pasteis",
+      "name": "Pastel Banoffee",
+      "description": "Doce de leite, banana e canela.",
+      "price": 15,
+      "imageKey": "pastelMilho"
+    },
+    {
+      "id": "pastel-romeu-julieta",
+      "categoryId": "pasteis",
+      "name": "Pastel Romeu e Julieta",
+      "description": "Queijo e goiabada em versão artesanal.",
+      "price": 15,
+      "imageKey": "pastelMilho"
+    },
+    {
+      "id": "empadao-frango",
+      "categoryId": "salgados",
+      "name": "Empadão de Frango",
+      "description": "Empadão caseiro com recheio de frango.",
+      "price": 25,
+      "imageKey": "panqueca"
+    },
+    {
+      "id": "panqueca-2-unidades",
+      "categoryId": "salgados",
+      "name": "Panqueca (2 unidades)",
+      "description": "Panquecas recheadas feitas com carinho.",
+      "price": 25,
+      "imageKey": "panqueca"
+    },
+    {
+      "id": "mini-pizza-5-unidades",
+      "categoryId": "salgados",
+      "name": "Mini Pizza (5 unidades)",
+      "description": "Cinco mini pizzas para compartilhar.",
+      "price": 25,
+      "imageKey": "pizza"
+    },
+    {
+      "id": "pizza-p",
+      "categoryId": "salgados",
+      "name": "Pizza P",
+      "description": "Pizza pequena preparada na cozinha da Ray.",
+      "price": 25,
+      "imageKey": "pizza"
+    },
+    {
+      "id": "lasanha",
+      "categoryId": "salgados",
+      "name": "Lasanha",
+      "description": "Lasanha caseira com sabor de comida feita com carinho.",
+      "price": 25,
+      "imageKey": "pizza"
+    },
+    {
+      "id": "torta-salgada-pedaco",
+      "categoryId": "salgados",
+      "name": "Torta Salgada (pedaço)",
+      "description": "Pedaço de torta salgada da casa.",
+      "price": 15,
+      "imageKey": "panqueca"
+    },
+    {
+      "id": "chips",
+      "categoryId": "salgados",
+      "name": "Chips",
+      "description": "Porção crocante para acompanhar o pedido.",
+      "price": 4,
+      "imageKey": "panqueca"
+    },
+    {
+      "id": "mini-empadinha-4-unidades",
+      "categoryId": "salgados",
+      "name": "Mini Empadinha (4 unidades)",
+      "description": "Quatro mini empadinhas artesanais.",
+      "price": 15,
+      "imageKey": "panqueca"
+    },
+    {
+      "id": "empadinha-2-unidades",
+      "categoryId": "salgados",
+      "name": "Empadinha (2 unidades)",
+      "description": "Duas empadinhas fresquinhas da Ray.",
+      "price": 10,
+      "imageKey": "panqueca"
+    },
+    {
+      "id": "pastel-assado-3-unidades",
+      "categoryId": "salgados",
+      "name": "Pastel Assado (3 unidades)",
+      "description": "Três pastéis assados, leves e saborosos.",
+      "price": 15,
+      "imageKey": "pastel"
+    },
+    {
+      "id": "agua-sem-gas-1l",
+      "categoryId": "bebidas",
+      "name": "Água sem Gás 1L",
+      "description": "Água sem gás, garrafa de 1 litro.",
+      "price": 8,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "agua-com-gas-1l",
+      "categoryId": "bebidas",
+      "name": "Água com Gás 1L",
+      "description": "Água com gás, garrafa de 1 litro.",
+      "price": 10,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "agua-sem-gas-500ml",
+      "categoryId": "bebidas",
+      "name": "Água sem Gás 500ml",
+      "description": "Água sem gás, garrafa de 500ml.",
+      "price": 4,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "agua-com-gas-500ml",
+      "categoryId": "bebidas",
+      "name": "Água com Gás 500ml",
+      "description": "Água com gás, garrafa de 500ml.",
+      "price": 5,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "refrigerante-juninho",
+      "categoryId": "bebidas",
+      "name": "Refrigerante Juninho",
+      "description": "Refrigerante pequeno para acompanhar.",
+      "price": 4,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "refrigerante-guarana-2l",
+      "categoryId": "bebidas",
+      "name": "Refrigerante Guaraná 2L",
+      "description": "Guaraná 2 litros geladinho.",
+      "price": 12,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "refrigerante-coca-cola-2l",
+      "categoryId": "bebidas",
+      "name": "Refrigerante Coca-Cola 2L",
+      "description": "Coca-Cola 2 litros para compartilhar.",
+      "price": 15,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "refri-lata",
+      "categoryId": "bebidas",
+      "name": "Refri Lata",
+      "description": "Refrigerante em lata.",
+      "price": 6,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "h2oh",
+      "categoryId": "bebidas",
+      "name": "H2OH",
+      "description": "Bebida H2OH gelada.",
+      "price": 8,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "pepsi-2l",
+      "categoryId": "bebidas",
+      "name": "Pepsi 2L",
+      "description": "Pepsi 2 litros geladinha.",
+      "price": 12,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "suco-caixinha-200ml",
+      "categoryId": "bebidas",
+      "name": "Suco de Caixinha 200ml",
+      "description": "Suco de caixinha 200ml.",
+      "price": 5,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "suco-caixinha-150ml",
+      "categoryId": "bebidas",
+      "name": "Suco de Caixinha 150ml",
+      "description": "Suco de caixinha 150ml.",
+      "price": 2.5,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "caldo-cana-copo-200ml",
+      "categoryId": "caldo-de-cana",
+      "name": "Caldo de Cana Copo 200ml",
+      "description": "Caldo de cana fresquinho no copo.",
+      "price": 4,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "caldo-cana-copo-300ml",
+      "categoryId": "caldo-de-cana",
+      "name": "Caldo de Cana Copo 300ml",
+      "description": "Caldo de cana fresquinho no copo.",
+      "price": 5,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "caldo-cana-copo-400ml",
+      "categoryId": "caldo-de-cana",
+      "name": "Caldo de Cana Copo 400ml",
+      "description": "Caldo de cana fresquinho no copo.",
+      "price": 6,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "caldo-cana-copo-500ml",
+      "categoryId": "caldo-de-cana",
+      "name": "Caldo de Cana Copo 500ml",
+      "description": "Caldo de cana fresquinho no copo.",
+      "price": 7,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "caldo-cana-garrafa-300ml",
+      "categoryId": "caldo-de-cana",
+      "name": "Caldo de Cana Garrafa 300ml",
+      "description": "Caldo de cana na garrafa.",
+      "price": 6,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "caldo-cana-garrafa-500ml",
+      "categoryId": "caldo-de-cana",
+      "name": "Caldo de Cana Garrafa 500ml",
+      "description": "Caldo de cana na garrafa.",
+      "price": 8,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "caldo-cana-garrafa-1l",
+      "categoryId": "caldo-de-cana",
+      "name": "Caldo de Cana Garrafa 1L",
+      "description": "Caldo de cana na garrafa de 1 litro.",
+      "price": 13,
+      "imageKey": "caldoCana"
+    },
+    {
+      "id": "mini-pudim",
+      "categoryId": "doces",
+      "name": "Mini Pudim",
+      "description": "Mini pudim cremoso da Ray.",
+      "price": 8,
+      "imageKey": "pudim"
+    },
+    {
+      "id": "copo-trufado",
+      "categoryId": "doces",
+      "name": "Copo Trufado",
+      "description": "Sobremesa trufada no copo.",
+      "price": 15,
+      "imageKey": "doce"
+    },
+    {
+      "id": "bombom-aberto",
+      "categoryId": "doces",
+      "name": "Bombom Aberto",
+      "description": "Bombom aberto cremoso e artesanal.",
+      "price": 13,
+      "imageKey": "doce"
+    },
+    {
+      "id": "tortinha-limao",
+      "categoryId": "doces",
+      "name": "Tortinha de Limão",
+      "description": "Tortinha de limão com toque caseiro.",
+      "price": 12,
+      "imageKey": "doce"
+    },
+    {
+      "id": "bolo-fatia",
+      "categoryId": "doces",
+      "name": "Bolo Fatia",
+      "description": "Fatia de bolo preparada com carinho.",
+      "price": 18,
+      "imageKey": "doce"
+    },
+    {
+      "id": "crustoli-acucar-canela",
+      "categoryId": "doces",
+      "name": "Crustoli com Açúcar e Canela",
+      "description": "Crustoli crocante com açúcar e canela.",
+      "price": 5,
+      "imageKey": "doce"
+    },
+    {
+      "id": "copo-crustoli",
+      "categoryId": "doces",
+      "name": "Copo Crustoli",
+      "description": "Crustoli servido no copo.",
+      "price": 10,
+      "imageKey": "doce"
+    },
+    {
+      "id": "taca-trufada",
+      "categoryId": "doces",
+      "name": "Taça Trufada",
+      "description": "Taça trufada para adoçar o dia.",
+      "price": 16,
+      "imageKey": "doce"
+    }
+  ]
+}

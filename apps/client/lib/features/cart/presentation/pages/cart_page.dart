@@ -144,7 +144,7 @@ class _CartProductVisual extends StatelessWidget {
     final imageUrl = product.imageUrl;
 
     if (imageUrl == null || imageUrl.isEmpty) {
-      return RayFoodPlaceholder(product: product, size: 72);
+      return RayFoodArtwork(product: product, size: 72);
     }
 
     return Container(
@@ -159,7 +159,7 @@ class _CartProductVisual extends StatelessWidget {
         imageUrl,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) {
-          return RayFoodPlaceholder(product: product, size: 72);
+          return RayFoodArtwork(product: product, size: 72);
         },
       ),
     );

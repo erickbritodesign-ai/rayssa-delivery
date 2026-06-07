@@ -76,6 +76,23 @@ class OrderDetailPage extends ConsumerWidget {
                 child: Column(
                   children: [
                     _ItemRow(
+                      label: 'Pagamento',
+                      value: order.paymentMethod.label,
+                    ),
+                    const SizedBox(height: 8),
+                    _ItemRow(
+                      label: 'Status do pagamento',
+                      value: order.paymentStatus.label,
+                    ),
+                    if (order.changeFor != null) ...[
+                      const SizedBox(height: 8),
+                      _ItemRow(
+                        label: 'Troco para',
+                        value: currency.format(order.changeFor),
+                      ),
+                    ],
+                    const Divider(),
+                    _ItemRow(
                       label: 'Subtotal',
                       value: currency.format(order.subtotal),
                     ),

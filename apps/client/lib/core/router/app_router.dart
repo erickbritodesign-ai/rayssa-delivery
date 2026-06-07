@@ -9,6 +9,7 @@ import 'package:rayssa_client/features/checkout/presentation/pages/checkout_page
 import 'package:rayssa_client/features/menu/presentation/pages/home_page.dart';
 import 'package:rayssa_client/features/orders/presentation/pages/order_detail_page.dart';
 import 'package:rayssa_client/features/orders/presentation/pages/orders_page.dart';
+import 'package:rayssa_client/features/profile/presentation/pages/profile_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -49,6 +50,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/orders',
         builder: (context, state) => const OrdersPage(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfilePage(),
       ),
       GoRoute(
         path: '/orders/:id',

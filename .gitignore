@@ -1,6 +1,9 @@
 # Flutter / Dart
 .dart_tool/
+.dart_appdata/
+.localappdata/
 .tool-home/
+.tmp/
 .packages
 build/
 *.iml
@@ -34,3 +37,5 @@ Thumbs.db
 # Coverage
 coverage/
 *.lcov
+
+service-account.json

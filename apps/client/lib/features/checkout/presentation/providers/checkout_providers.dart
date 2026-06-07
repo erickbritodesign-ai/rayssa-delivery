@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rayssa_client/features/auth/presentation/providers/auth_providers.dart';
 import 'package:rayssa_client/features/cart/presentation/providers/cart_providers.dart';
+import 'package:rayssa_client/features/checkout/domain/models/delivery_area.dart';
 import 'package:rayssa_client/features/checkout/domain/services/delivery_fee_service.dart';
 import 'package:rayssa_client/features/orders/presentation/providers/order_providers.dart';
 import 'package:rayssa_core/rayssa_core.dart';
@@ -8,6 +9,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 final deliveryTypeProvider =
     StateProvider<DeliveryType>((ref) => DeliveryType.delivery);
+
+final selectedDeliveryAreaProvider =
+    StateProvider<DeliveryArea?>((ref) => null);
 
 final storeDeliveryFeeProvider = StreamProvider<double>((ref) {
   return FirebaseFirestore.instance
@@ -26,8 +30,13 @@ final storeDeliveryFeeProvider = StreamProvider<double>((ref) {
 
 final deliveryFeeProvider = Provider<double>((ref) {
   final type = ref.watch(deliveryTypeProvider);
+  final selectedArea = ref.watch(selectedDeliveryAreaProvider);
   final configuredFee = ref.watch(storeDeliveryFeeProvider).valueOrNull ??
       DeliveryFeeService.defaultDeliveryFee;
+
+  if (type == DeliveryType.delivery && selectedArea?.deliveryFee != null) {
+    return selectedArea!.deliveryFee!;
+  }
 
   return DeliveryFeeService.calculate(
     type: type,
@@ -53,6 +62,8 @@ class CheckoutController extends StateNotifier<AsyncValue<String?>> {
 
   Future<String?> placeOrder({
     required AddressModel? address,
+    required PaymentMethod paymentMethod,
+    double? changeFor,
     String? notes,
   }) async {
     state = const AsyncLoading();
@@ -88,10 +99,11 @@ class CheckoutController extends StateNotifier<AsyncValue<String?>> {
         total: subtotal + deliveryFee,
         status: OrderStatus.received,
         deliveryType: deliveryType,
-        paymentMethod: PaymentMethod.pix,
+        paymentMethod: paymentMethod,
         paymentStatus: PaymentStatus.pending,
         address: deliveryType == DeliveryType.delivery ? address : null,
         notes: notes,
+        changeFor: changeFor,
       );
 
       final orderId =

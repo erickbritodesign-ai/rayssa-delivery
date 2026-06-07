@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:rayssa_admin/shared/data/admin_firestore_service.dart';
@@ -18,87 +18,124 @@ class DashboardPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Dashboard')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: ordersAsync.when(
-          data: (orders) {
-            final now = DateTime.now();
+      body: ordersAsync.when(
+        data: (orders) {
+          final now = DateTime.now();
 
-            bool isToday(OrderModel order) {
-              final createdAt = order.createdAt;
-              if (createdAt == null) return false;
-              return createdAt.year == now.year &&
-                  createdAt.month == now.month &&
-                  createdAt.day == now.day;
-            }
+          bool isToday(OrderModel order) {
+            final createdAt = order.createdAt;
+            if (createdAt == null) return false;
 
-            final todayOrders = orders.where(isToday).toList();
+            return createdAt.year == now.year &&
+                createdAt.month == now.month &&
+                createdAt.day == now.day;
+          }
 
-            final pendingOrders = orders
-                .where(
-                  (o) =>
-                      o.status == OrderStatus.received ||
-                      o.status == OrderStatus.confirmed ||
-                      o.status == OrderStatus.preparing ||
-                      o.status == OrderStatus.outForDelivery,
-                )
-                .length;
+          final todayOrders = orders.where(isToday).toList();
 
-            final deliveredToday = todayOrders
-                .where((o) => o.status == OrderStatus.delivered)
-                .length;
+          final pendingOrders = orders.where((order) {
+            return order.status == OrderStatus.received ||
+                order.status == OrderStatus.confirmed ||
+                order.status == OrderStatus.preparing ||
+                order.status == OrderStatus.outForDelivery;
+          }).length;
 
-            final cancelledToday = todayOrders
-                .where((o) => o.status == OrderStatus.cancelled)
-                .length;
+          final deliveredToday = todayOrders
+              .where((order) => order.status == OrderStatus.delivered)
+              .length;
 
-            final revenueToday = todayOrders
-                .where((o) => o.status != OrderStatus.cancelled)
-                .fold<double>(0, (sum, order) => sum + order.total);
+          final cancelledToday = todayOrders
+              .where((order) => order.status == OrderStatus.cancelled)
+              .length;
 
-            return Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                _StatCard(
-                  title: 'Pedidos hoje',
-                  value: '${todayOrders.length}',
-                  icon: Icons.receipt_long,
+          final revenueToday = todayOrders
+              .where((order) => order.status != OrderStatus.cancelled)
+              .fold<double>(0, (sum, order) => sum + order.total);
+
+          final stats = [
+            _DashboardStat(
+              title: 'Pedidos hoje',
+              value: '${todayOrders.length}',
+              icon: Icons.receipt_long,
+            ),
+            _DashboardStat(
+              title: 'Faturamento hoje',
+              value: currency.format(revenueToday),
+              icon: Icons.payments,
+            ),
+            _DashboardStat(
+              title: 'Pedidos em aberto',
+              value: '$pendingOrders',
+              icon: Icons.pending_actions,
+            ),
+            _DashboardStat(
+              title: 'Entregues hoje',
+              value: '$deliveredToday',
+              icon: Icons.check_circle,
+            ),
+            _DashboardStat(
+              title: 'Cancelados hoje',
+              value: '$cancelledToday',
+              icon: Icons.cancel,
+            ),
+            _DashboardStat(
+              title: 'Total de pedidos',
+              value: '${orders.length}',
+              icon: Icons.list_alt,
+            ),
+          ];
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 700;
+              final crossAxisCount = isMobile
+                  ? 2
+                  : (constraints.maxWidth ~/ 260).clamp(2, 4).toInt();
+
+              return GridView.builder(
+                padding: EdgeInsets.fromLTRB(
+                  isMobile ? 14 : 24,
+                  isMobile ? 14 : 24,
+                  isMobile ? 14 : 24,
+                  90,
                 ),
-                _StatCard(
-                  title: 'Faturamento hoje',
-                  value: currency.format(revenueToday),
-                  icon: Icons.payments,
+                itemCount: stats.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: isMobile ? 1.12 : 1.75,
                 ),
-                _StatCard(
-                  title: 'Pedidos em aberto',
-                  value: '$pendingOrders',
-                  icon: Icons.pending_actions,
-                ),
-                _StatCard(
-                  title: 'Entregues hoje',
-                  value: '$deliveredToday',
-                  icon: Icons.check_circle,
-                ),
-                _StatCard(
-                  title: 'Cancelados hoje',
-                  value: '$cancelledToday',
-                  icon: Icons.cancel,
-                ),
-                _StatCard(
-                  title: 'Total de pedidos',
-                  value: '${orders.length}',
-                  icon: Icons.list_alt,
-                ),
-              ],
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Text('Erro: $e'),
-        ),
+                itemBuilder: (context, index) {
+                  final stat = stats[index];
+
+                  return _StatCard(
+                    title: stat.title,
+                    value: stat.value,
+                    icon: stat.icon,
+                  );
+                },
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(child: Text('Erro: $error')),
       ),
     );
   }
+}
+
+class _DashboardStat {
+  const _DashboardStat({
+    required this.title,
+    required this.value,
+    required this.icon,
+  });
+
+  final String title;
+  final String value;
+  final IconData icon;
 }
 
 class _StatCard extends StatelessWidget {
@@ -114,26 +151,53 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: SizedBox(
-        width: 240,
-        height: 130,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon),
-              const Spacer(),
-              Text(title),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-            ],
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10000000),
+            blurRadius: 14,
+            offset: Offset(0, 8),
           ),
-        ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            size: 19,
+            color: const Color(0xFF4B3831),
+          ),
+          const Spacer(),
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: const Color(0xFF4B3831),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                color: const Color(0xFF2B1D18),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

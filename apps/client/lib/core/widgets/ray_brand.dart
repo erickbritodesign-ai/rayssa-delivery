@@ -16,6 +16,7 @@ class RayBrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compactMark = size < 44;
     final mark = DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(size),
@@ -34,11 +35,11 @@ class RayBrandMark extends StatelessWidget {
           height: size,
           child: Center(
             child: Text(
-              'Ray',
+              compactMark ? 'R' : 'Ray',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: onDark ? AppTheme.primaryRed : AppTheme.warmWhite,
                     fontWeight: FontWeight.w900,
-                    fontSize: size * 0.34,
+                    fontSize: size * (compactMark ? 0.52 : 0.34),
                     height: 1,
                   ),
             ),
@@ -272,8 +273,8 @@ String _normalized(String value) {
       .replaceAll('ç', 'c');
 }
 
-class RayFoodPlaceholder extends StatelessWidget {
-  const RayFoodPlaceholder({
+class RayFoodArtwork extends StatelessWidget {
+  const RayFoodArtwork({
     required this.product,
     this.size = 86,
     super.key,

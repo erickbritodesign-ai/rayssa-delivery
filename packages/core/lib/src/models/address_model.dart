@@ -11,6 +11,7 @@ class AddressModel extends Equatable {
     this.complement,
     this.reference,
     this.label = 'Casa',
+    this.deliveryFee,
   });
 
   final String street;
@@ -22,6 +23,7 @@ class AddressModel extends Equatable {
   final String? complement;
   final String? reference;
   final String label;
+  final double? deliveryFee;
 
   String get formatted =>
       '$street, $number - $neighborhood, $city/$state';
@@ -37,6 +39,7 @@ class AddressModel extends Equatable {
       complement: map['complement'] as String?,
       reference: map['reference'] as String?,
       label: map['label'] as String? ?? 'Casa',
+      deliveryFee: (map['deliveryFee'] as num?)?.toDouble(),
     );
   }
 
@@ -51,6 +54,7 @@ class AddressModel extends Equatable {
       'complement': complement,
       'reference': reference,
       'label': label,
+      'deliveryFee': deliveryFee,
     };
   }
 
@@ -65,5 +69,6 @@ class AddressModel extends Equatable {
         complement,
         reference,
         label,
+        deliveryFee,
       ];
 }

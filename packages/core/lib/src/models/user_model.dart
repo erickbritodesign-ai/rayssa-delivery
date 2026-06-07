@@ -10,6 +10,7 @@ class UserModel extends Equatable {
     required this.phone,
     required this.role,
     this.addresses = const [],
+    this.loyaltyPoints = 0,
     this.createdAt,
   });
 
@@ -19,10 +20,12 @@ class UserModel extends Equatable {
   final String phone;
   final UserRole role;
   final List<AddressModel> addresses;
+  final int loyaltyPoints;
   final DateTime? createdAt;
 
   factory UserModel.fromFirestore(String id, Map<String, dynamic> data) {
     final addressesRaw = data['addresses'] as List<dynamic>? ?? [];
+    final loyaltyRaw = data['loyaltyPoints'] ?? data['points'];
     return UserModel(
       id: id,
       name: data['name'] as String? ?? '',
@@ -32,6 +35,7 @@ class UserModel extends Equatable {
       addresses: addressesRaw
           .map((item) => AddressModel.fromMap(item as Map<String, dynamic>))
           .toList(),
+      loyaltyPoints: loyaltyRaw is num ? loyaltyRaw.toInt() : 0,
       createdAt: _timestampToDate(data['createdAt']),
     );
   }
@@ -43,12 +47,22 @@ class UserModel extends Equatable {
       'phone': phone,
       'role': role.value,
       'addresses': addresses.map((address) => address.toMap()).toList(),
+      'loyaltyPoints': loyaltyPoints,
       'createdAt': createdAt,
     };
   }
 
   @override
-  List<Object?> get props => [id, name, email, phone, role, addresses, createdAt];
+  List<Object?> get props => [
+        id,
+        name,
+        email,
+        phone,
+        role,
+        addresses,
+        loyaltyPoints,
+        createdAt,
+      ];
 }
 
 DateTime? _timestampToDate(dynamic value) {
