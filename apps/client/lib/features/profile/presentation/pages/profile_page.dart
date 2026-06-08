@@ -266,19 +266,9 @@ class _RayLoyaltyCard extends StatelessWidget {
 
   static const _rewards = [
     _RayReward(
-      points: 50,
-      title: '50 pontos',
-      benefit: 'R\$ 3,00 de desconto ou brinde definido pela Ray',
-    ),
-    _RayReward(
       points: 100,
       title: '100 pontos',
       benefit: 'R\$ 5,00 de desconto no próximo pedido',
-    ),
-    _RayReward(
-      points: 150,
-      title: '150 pontos',
-      benefit: 'Salgado simples grátis',
     ),
     _RayReward(
       points: 200,
@@ -288,7 +278,7 @@ class _RayLoyaltyCard extends StatelessWidget {
     _RayReward(
       points: 300,
       title: '300 pontos',
-      benefit: 'Pastel selecionado grátis',
+      benefit: 'R\$ 15,00 de desconto',
     ),
   ];
 
@@ -376,6 +366,11 @@ class _RayLoyaltyCard extends StatelessWidget {
               'A cada R\$ 1,00 em pedidos pelo app, você ganha 1 ponto.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Use seus pontos no checkout em pedidos Delivery ou Retirada.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             const SizedBox(height: 14),
             for (final reward in _rewards) ...[
               _RayRewardTile(points: points, reward: reward),
@@ -391,7 +386,7 @@ class _RayLoyaltyCard extends StatelessWidget {
                 border: Border.all(color: colors.outlineVariant),
               ),
               child: Text(
-                'Resgate em breve pelo app. Benefícios serão confirmados pela Ray.',
+                'Use seus pontos no checkout em pedidos Delivery ou Retirada.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colors.onSurface.withOpacity(0.76),
                       fontWeight: FontWeight.w700,

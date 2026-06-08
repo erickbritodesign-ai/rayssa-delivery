@@ -286,12 +286,14 @@ final adminFirestoreProvider = Provider<AdminFirestoreService>((ref) {
 });
 
 int calculateLoyaltyPointsFromProducts(OrderModel order) {
-  final productValue = order.subtotal > 0
-      ? order.subtotal
-      : order.items.fold<double>(
-          0,
-          (sum, item) => sum + item.subtotal,
-        );
+  final productValue = order.loyaltyRewardApplied
+      ? order.subtotalAfterDiscount
+      : (order.subtotal > 0
+          ? order.subtotal
+          : order.items.fold<double>(
+              0,
+              (sum, item) => sum + item.subtotal,
+            ));
   final points = productValue.floor();
   return points > 0 ? points : 0;
 }

@@ -635,6 +635,18 @@ class _OrderMetaRow extends StatelessWidget {
           label: currency.format(order.total),
           emphasized: true,
         ),
+        if (order.loyaltyRewardApplied &&
+            order.loyaltyDiscountAmount > 0) ...[
+          _MetaPill(
+            icon: Icons.local_offer_outlined,
+            label:
+                'Desconto fidelidade: ${currency.format(order.loyaltyDiscountAmount)}',
+          ),
+          _MetaPill(
+            icon: Icons.redeem_outlined,
+            label: 'Pontos usados: ${order.loyaltyPointsRedeemed}',
+          ),
+        ],
         _MetaPill(
           icon: Icons.account_balance_wallet_outlined,
           label: _paymentMethodLabel(order.paymentMethod),

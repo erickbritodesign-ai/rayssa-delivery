@@ -63,6 +63,9 @@ class CheckoutController extends StateNotifier<AsyncValue<String?>> {
   Future<String?> placeOrder({
     required AddressModel? address,
     required PaymentMethod paymentMethod,
+    int loyaltyPointsRedeemed = 0,
+    double loyaltyDiscountAmount = 0,
+    String? loyaltyRewardLabel,
     double? changeFor,
     String? notes,
   }) async {
@@ -77,6 +80,15 @@ class CheckoutController extends StateNotifier<AsyncValue<String?>> {
       final deliveryType = _ref.read(deliveryTypeProvider);
       final subtotal = _ref.read(cartSubtotalProvider);
       final deliveryFee = _ref.read(deliveryFeeProvider);
+      final canApplyReward = deliveryType == DeliveryType.delivery ||
+          deliveryType == DeliveryType.pickup;
+      final discount = canApplyReward
+          ? _clampDiscount(loyaltyDiscountAmount, subtotal)
+          : 0.0;
+      final pointsRedeemed =
+          canApplyReward && discount > 0 ? loyaltyPointsRedeemed : 0;
+      final rewardApplied = pointsRedeemed > 0;
+      final subtotalAfterDiscount = subtotal - discount;
 
       final items = cart
           .map(
@@ -96,7 +108,7 @@ class CheckoutController extends StateNotifier<AsyncValue<String?>> {
         items: items,
         subtotal: subtotal,
         deliveryFee: deliveryFee,
-        total: subtotal + deliveryFee,
+        total: subtotalAfterDiscount + deliveryFee,
         status: OrderStatus.received,
         deliveryType: deliveryType,
         paymentMethod: paymentMethod,
@@ -104,13 +116,27 @@ class CheckoutController extends StateNotifier<AsyncValue<String?>> {
         address: deliveryType == DeliveryType.delivery ? address : null,
         notes: notes,
         changeFor: changeFor,
+        loyaltyRewardApplied: rewardApplied,
+        loyaltyPointsRedeemed: pointsRedeemed,
+        loyaltyDiscountAmount: discount,
+        loyaltyRewardLabel: rewardApplied ? loyaltyRewardLabel : null,
+        subtotalBeforeDiscount: subtotal,
+        subtotalAfterDiscount: subtotalAfterDiscount,
       );
 
       final orderId =
           await _ref.read(orderRepositoryProvider).createOrder(order);
       _ref.read(cartControllerProvider.notifier).clear();
+      if (rewardApplied) {
+        _ref.invalidate(currentUserProvider);
+      }
       return orderId;
     });
     return state.valueOrNull;
   }
+}
+
+double _clampDiscount(double discount, double subtotal) {
+  if (discount <= 0 || subtotal <= 0) return 0;
+  return discount > subtotal ? subtotal : discount;
 }

@@ -26,6 +26,12 @@ class OrderModel extends Equatable {
     this.tableSessionId,
     this.dineInStatus,
     this.mercadoPagoPaymentId,
+    this.loyaltyRewardApplied = false,
+    this.loyaltyPointsRedeemed = 0,
+    this.loyaltyDiscountAmount = 0,
+    this.loyaltyRewardLabel,
+    this.subtotalBeforeDiscount = 0,
+    this.subtotalAfterDiscount = 0,
     this.loyaltyPointsAwarded = false,
     this.loyaltyPoints = 0,
     this.loyaltyAwardedAt,
@@ -51,6 +57,12 @@ class OrderModel extends Equatable {
   final String? tableSessionId;
   final String? dineInStatus;
   final String? mercadoPagoPaymentId;
+  final bool loyaltyRewardApplied;
+  final int loyaltyPointsRedeemed;
+  final double loyaltyDiscountAmount;
+  final String? loyaltyRewardLabel;
+  final double subtotalBeforeDiscount;
+  final double subtotalAfterDiscount;
   final bool loyaltyPointsAwarded;
   final int loyaltyPoints;
   final DateTime? loyaltyAwardedAt;
@@ -60,13 +72,18 @@ class OrderModel extends Equatable {
   factory OrderModel.fromFirestore(String id, Map<String, dynamic> data) {
     final itemsRaw = data['items'] as List<dynamic>? ?? [];
     final addressRaw = data['address'] as Map<String, dynamic>?;
+    final subtotal = (data['subtotal'] as num?)?.toDouble() ?? 0;
+    final subtotalBeforeDiscount =
+        (data['subtotalBeforeDiscount'] as num?)?.toDouble() ?? subtotal;
+    final subtotalAfterDiscount =
+        (data['subtotalAfterDiscount'] as num?)?.toDouble() ?? subtotal;
     return OrderModel(
       id: id,
       userId: data['userId'] as String? ?? '',
       items: itemsRaw
           .map((item) => OrderItemModel.fromMap(item as Map<String, dynamic>))
           .toList(),
-      subtotal: (data['subtotal'] as num?)?.toDouble() ?? 0,
+      subtotal: subtotal,
       deliveryFee: (data['deliveryFee'] as num?)?.toDouble() ?? 0,
       total: (data['total'] as num?)?.toDouble() ?? 0,
       status: OrderStatus.fromString(data['status'] as String?),
@@ -84,6 +101,14 @@ class OrderModel extends Equatable {
       tableSessionId: data['tableSessionId'] as String?,
       dineInStatus: data['dineInStatus'] as String?,
       mercadoPagoPaymentId: data['mercadoPagoPaymentId'] as String?,
+      loyaltyRewardApplied: data['loyaltyRewardApplied'] == true,
+      loyaltyPointsRedeemed:
+          (data['loyaltyPointsRedeemed'] as num?)?.toInt() ?? 0,
+      loyaltyDiscountAmount:
+          (data['loyaltyDiscountAmount'] as num?)?.toDouble() ?? 0,
+      loyaltyRewardLabel: data['loyaltyRewardLabel'] as String?,
+      subtotalBeforeDiscount: subtotalBeforeDiscount,
+      subtotalAfterDiscount: subtotalAfterDiscount,
       loyaltyPointsAwarded: data['loyaltyPointsAwarded'] == true,
       loyaltyPoints: (data['loyaltyPoints'] as num?)?.toInt() ?? 0,
       loyaltyAwardedAt: _timestampToDate(data['loyaltyAwardedAt']),
@@ -113,6 +138,12 @@ class OrderModel extends Equatable {
       'tableSessionId': tableSessionId,
       'dineInStatus': dineInStatus,
       'mercadoPagoPaymentId': mercadoPagoPaymentId,
+      'loyaltyRewardApplied': loyaltyRewardApplied,
+      'loyaltyPointsRedeemed': loyaltyPointsRedeemed,
+      'loyaltyDiscountAmount': loyaltyDiscountAmount,
+      'loyaltyRewardLabel': loyaltyRewardLabel,
+      'subtotalBeforeDiscount': subtotalBeforeDiscount,
+      'subtotalAfterDiscount': subtotalAfterDiscount,
       'loyaltyPointsAwarded': loyaltyPointsAwarded,
       'loyaltyPoints': loyaltyPoints,
       'loyaltyAwardedAt': loyaltyAwardedAt,
@@ -141,6 +172,12 @@ class OrderModel extends Equatable {
     tableSessionId,
     dineInStatus,
     mercadoPagoPaymentId,
+    loyaltyRewardApplied,
+    loyaltyPointsRedeemed,
+    loyaltyDiscountAmount,
+    loyaltyRewardLabel,
+    subtotalBeforeDiscount,
+    subtotalAfterDiscount,
     loyaltyPointsAwarded,
     loyaltyPoints,
     loyaltyAwardedAt,

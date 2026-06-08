@@ -105,8 +105,22 @@ class OrderDetailPage extends ConsumerWidget {
                     const Divider(),
                     _ItemRow(
                       label: 'Subtotal',
-                      value: currency.format(order.subtotal),
+                      value: currency.format(_subtotalBeforeDiscount(order)),
                     ),
+                    if (order.loyaltyRewardApplied &&
+                        order.loyaltyDiscountAmount > 0) ...[
+                      const SizedBox(height: 8),
+                      _ItemRow(
+                        label: 'Desconto fidelidade',
+                        value:
+                            '-${currency.format(order.loyaltyDiscountAmount)}',
+                      ),
+                      const SizedBox(height: 8),
+                      _ItemRow(
+                        label: 'Pontos usados',
+                        value: '${order.loyaltyPointsRedeemed} pts',
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     _ItemRow(
                       label: 'Taxa de entrega',
@@ -682,12 +696,18 @@ int _loyaltyPointsFor(OrderModel order) {
     return order.loyaltyPoints;
   }
 
-  final productValue = order.subtotal > 0
-      ? order.subtotal
-      : order.items.fold<double>(
-          0,
-          (sum, item) => sum + item.subtotal,
-        );
+  final productValue = order.loyaltyRewardApplied
+      ? order.subtotalAfterDiscount
+      : _subtotalBeforeDiscount(order);
   final points = productValue.floor();
   return points > 0 ? points : 0;
+}
+
+double _subtotalBeforeDiscount(OrderModel order) {
+  if (order.subtotalBeforeDiscount > 0) return order.subtotalBeforeDiscount;
+  if (order.subtotal > 0) return order.subtotal;
+  return order.items.fold<double>(
+    0,
+    (sum, item) => sum + item.subtotal,
+  );
 }

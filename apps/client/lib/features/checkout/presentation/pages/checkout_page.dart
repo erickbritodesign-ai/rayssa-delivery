@@ -30,6 +30,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   DeliveryArea? _selectedArea;
   TableModel? _selectedTable;
   _PaymentSelection? _selectedPayment;
+  _LoyaltyRewardOption? _selectedLoyaltyReward;
 
   @override
   void initState() {
@@ -105,7 +106,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   Future<void> _openPaymentSheet() async {
-    final total = ref.read(checkoutTotalProvider);
+    final subtotal = ref.read(cartSubtotalProvider);
+    final deliveryFee = ref.read(deliveryFeeProvider);
+    final total = _finalTotal(subtotal: subtotal, deliveryFee: deliveryFee);
     final currency = NumberFormat.simpleCurrency(locale: 'pt_BR');
 
     final result = await showModalBottomSheet<_PaymentSelection>(
@@ -128,7 +131,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   Future<void> _submit(_PaymentSelection payment) async {
     final deliveryType = ref.read(deliveryTypeProvider);
     final deliveryFee = ref.read(deliveryFeeProvider);
-    final orderTotal = ref.read(checkoutTotalProvider);
+    final subtotal = ref.read(cartSubtotalProvider);
+    final reward = _selectedLoyaltyReward;
+    final discount = _loyaltyDiscountFor(subtotal);
+    final orderTotal = _finalTotal(subtotal: subtotal, deliveryFee: deliveryFee);
     AddressModel? address;
 
     if (deliveryType == DeliveryType.delivery) {
@@ -151,6 +157,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         await ref.read(checkoutControllerProvider.notifier).placeOrder(
               address: address,
               paymentMethod: payment.method,
+              loyaltyPointsRedeemed: reward?.points ?? 0,
+              loyaltyDiscountAmount: discount,
+              loyaltyRewardLabel: reward?.label,
               changeFor: payment.changeFor,
               notes: _notesController.text.trim().isEmpty
                   ? null
@@ -172,6 +181,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     if (mounted) context.go('/orders/$orderId');
+  }
+
+  double _loyaltyDiscountFor(double subtotal) {
+    final reward = _selectedLoyaltyReward;
+    if (reward == null) return 0;
+    if (subtotal <= 0) return 0;
+    return reward.discount > subtotal ? subtotal : reward.discount;
+  }
+
+  double _finalTotal({required double subtotal, required double deliveryFee}) {
+    return subtotal - _loyaltyDiscountFor(subtotal) + deliveryFee;
   }
 
   Future<void> _submitDineIn() async {
@@ -303,23 +323,39 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final items = ref.watch(cartControllerProvider);
     final subtotal = ref.watch(cartSubtotalProvider);
     final deliveryFee = ref.watch(deliveryFeeProvider);
-    final total = ref.watch(checkoutTotalProvider);
     final deliveryType = ref.watch(deliveryTypeProvider);
     final checkoutState = ref.watch(checkoutControllerProvider);
     final tablesAsync = ref.watch(tablesProvider);
     final currentUser = ref.watch(currentUserProvider).valueOrNull;
+    final loyaltyPoints = currentUser?.loyaltyPoints ?? 0;
     final canAccessDineIn = currentUser?.canAccessDineIn ?? false;
     final visibleDeliveryType =
         !canAccessDineIn && deliveryType == DeliveryType.dineIn
             ? DeliveryType.delivery
             : deliveryType;
     final currency = NumberFormat.simpleCurrency(locale: 'pt_BR');
+    final canUseLoyalty = visibleDeliveryType == DeliveryType.delivery ||
+        visibleDeliveryType == DeliveryType.pickup;
+    final selectedReward = _selectedLoyaltyReward;
+    final loyaltyDiscount = canUseLoyalty ? _loyaltyDiscountFor(subtotal) : 0.0;
+    final subtotalAfterDiscount = subtotal - loyaltyDiscount;
+    final total = subtotalAfterDiscount + deliveryFee;
 
     if (!canAccessDineIn && deliveryType == DeliveryType.dineIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ref.read(deliveryTypeProvider.notifier).state = DeliveryType.delivery;
         setState(() => _selectedTable = null);
+      });
+    }
+
+    if ((!canUseLoyalty ||
+            selectedReward != null &&
+                loyaltyPoints < selectedReward.points) &&
+        selectedReward != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _selectedLoyaltyReward = null);
       });
     }
 
@@ -349,6 +385,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   _selectedPayment = null;
                   if (type != DeliveryType.delivery) _selectedArea = null;
                   if (type != DeliveryType.dineIn) _selectedTable = null;
+                  if (type == DeliveryType.dineIn) {
+                    _selectedLoyaltyReward = null;
+                  }
                 });
                 ref.read(deliveryTypeProvider.notifier).state = type;
                 if (type != DeliveryType.delivery) {
@@ -465,7 +504,20 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 hintText: 'Ex.: tirar cebola, ponto da massa...',
               ),
             ),
-          ),
+            ),
+          if (canUseLoyalty)
+            _CheckoutSection(
+              icon: Icons.workspace_premium_outlined,
+              title: 'Usar pontos da Fidelidade',
+              child: _LoyaltyRewardSelector(
+                availablePoints: loyaltyPoints,
+                selected: _selectedLoyaltyReward,
+                subtotal: subtotal,
+                onSelected: (reward) {
+                  setState(() => _selectedLoyaltyReward = reward);
+                },
+              ),
+            ),
           if (visibleDeliveryType != DeliveryType.dineIn)
             _CheckoutSection(
               icon: Icons.payments_outlined,
@@ -482,6 +534,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               children: [
                 _SummaryRow(
                     label: 'Subtotal', value: currency.format(subtotal)),
+                if (loyaltyDiscount > 0) ...[
+                  const SizedBox(height: 8),
+                  _SummaryRow(
+                    label: 'Desconto fidelidade',
+                    value: '-${currency.format(loyaltyDiscount)}',
+                  ),
+                  const SizedBox(height: 8),
+                  _SummaryRow(
+                    label: 'Produtos com desconto',
+                    value: currency.format(subtotalAfterDiscount),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 _SummaryRow(
                   label: 'Taxa de entrega',
@@ -538,6 +602,189 @@ class _PaymentSelection {
   final PaymentMethod method;
   final bool needsChange;
   final double? changeFor;
+}
+
+class _LoyaltyRewardOption {
+  const _LoyaltyRewardOption({
+    required this.points,
+    required this.discount,
+  });
+
+  final int points;
+  final double discount;
+
+  String get label => '$points pontos • R\$ ${discount.toStringAsFixed(2).replaceAll('.', ',')} de desconto';
+}
+
+const _loyaltyRewards = [
+  _LoyaltyRewardOption(points: 100, discount: 5),
+  _LoyaltyRewardOption(points: 200, discount: 10),
+  _LoyaltyRewardOption(points: 300, discount: 15),
+];
+
+class _LoyaltyRewardSelector extends StatelessWidget {
+  const _LoyaltyRewardSelector({
+    required this.availablePoints,
+    required this.selected,
+    required this.subtotal,
+    required this.onSelected,
+  });
+
+  final int availablePoints;
+  final _LoyaltyRewardOption? selected;
+  final double subtotal;
+  final ValueChanged<_LoyaltyRewardOption?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final currency = NumberFormat.simpleCurrency(locale: 'pt_BR');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Você tem $availablePoints pontos.',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: colors.onSurface,
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'O desconto vale somente para os produtos. A taxa de entrega continua normal.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        if (selected != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => onSelected(null),
+              icon: const Icon(Icons.close, size: 16),
+              label: const Text('Não usar pontos'),
+              style: TextButton.styleFrom(
+                foregroundColor: colors.secondary,
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ),
+        for (final reward in _loyaltyRewards) ...[
+          _LoyaltyRewardTile(
+            reward: reward,
+            availablePoints: availablePoints,
+            selected: selected?.points == reward.points,
+            subtotal: subtotal,
+            currency: currency,
+            dark: dark,
+            onSelected: onSelected,
+          ),
+          if (reward != _loyaltyRewards.last) const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+}
+
+class _LoyaltyRewardTile extends StatelessWidget {
+  const _LoyaltyRewardTile({
+    required this.reward,
+    required this.availablePoints,
+    required this.selected,
+    required this.subtotal,
+    required this.currency,
+    required this.dark,
+    required this.onSelected,
+  });
+
+  final _LoyaltyRewardOption reward;
+  final int availablePoints;
+  final bool selected;
+  final double subtotal;
+  final NumberFormat currency;
+  final bool dark;
+  final ValueChanged<_LoyaltyRewardOption?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final canUse = availablePoints >= reward.points && subtotal > 0;
+    final missing = reward.points - availablePoints;
+    final appliedDiscount =
+        reward.discount > subtotal ? subtotal : reward.discount;
+    final accent = dark ? colors.secondary : colors.primary;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: canUse ? () => onSelected(selected ? null : reward) : null,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: selected
+              ? (dark ? AppTheme.darkCardSoft : AppTheme.blush)
+              : colors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected ? accent : colors.outlineVariant,
+            width: selected ? 1.3 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: selected
+                    ? accent
+                    : (dark ? AppTheme.darkCardSoft : AppTheme.cream),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                selected ? Icons.check : Icons.workspace_premium_outlined,
+                color: selected
+                    ? (dark ? AppTheme.ink : AppTheme.warmWhite)
+                    : accent,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${reward.points} pontos',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: colors.onSurface,
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${currency.format(appliedDiscount)} de desconto',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              canUse ? (selected ? 'Aplicado' : 'Usar') : 'Faltam $missing',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: canUse ? accent : colors.onSurface.withOpacity(0.62),
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ReceiveTypeSelector extends StatelessWidget {
