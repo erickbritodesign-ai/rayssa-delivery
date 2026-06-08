@@ -31,6 +31,10 @@ class AuthRemoteDatasource {
     );
   }
 
+  Future<void> sendPasswordResetEmail(String email) {
+    return _auth.sendPasswordResetEmail(email: email);
+  }
+
   Future<void> createUserProfile({
     required String uid,
     required String name,

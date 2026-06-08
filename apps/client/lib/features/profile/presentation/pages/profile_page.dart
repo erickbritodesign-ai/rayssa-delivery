@@ -195,7 +195,7 @@ class _ThemeModeCard extends ConsumerWidget {
         subtitle: const Text('Visual premium para usar à noite.'),
         value: enabled,
         onChanged: (value) {
-          ref.read(darkThemeEnabledProvider.notifier).state = value;
+          ref.read(darkThemeEnabledProvider.notifier).setEnabled(value);
         },
       ),
     );

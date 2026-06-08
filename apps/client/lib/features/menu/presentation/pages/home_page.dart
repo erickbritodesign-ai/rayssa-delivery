@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,16 +38,19 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   final _searchController = TextEditingController();
-  final _menuKey = GlobalKey();
+  final _homeScrollController = ScrollController();
+  final _homeScrollViewKey = GlobalKey();
+  final _menuSectionKey = GlobalKey();
   String _selectedFilter = _allFilter;
   bool _cartPulse = false;
   bool _toastVisible = false;
-  String _toastMessage = 'Adicionado Ã  sacola';
+  String _toastMessage = 'Adicionado à sacola';
   Timer? _toastTimer;
 
   @override
   void dispose() {
     _toastTimer?.cancel();
+    _homeScrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -63,6 +66,8 @@ class _HomePageState extends ConsumerState<HomePage> {
       body: Stack(
         children: [
           CustomScrollView(
+            key: _homeScrollViewKey,
+            controller: _homeScrollController,
             slivers: [
               SliverAppBar(
                 pinned: true,
@@ -158,7 +163,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                   delegate: SliverChildListDelegate.fixed([
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                      child: _CategoryCarousel(onSelected: _selectCategory),
+                      child: _CategoryCarousel(
+                        onSelected: _selectCategoryAndScroll,
+                      ),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
@@ -178,7 +185,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       child: _StorySection(photo: RayPhotos.rayStory),
                     ),
                     Padding(
-                      key: _menuKey,
+                      key: _menuSectionKey,
                       padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
                       child: const _SectionHeader(
                         title: 'Card\u00e1pio Completo',
@@ -296,27 +303,85 @@ class _HomePageState extends ConsumerState<HomePage> {
     return _prioritizedProducts(filtered);
   }
 
-  void _scrollToMenu() {
-    final context = _menuKey.currentContext;
-    if (context == null) return;
+  void _selectCategoryAndScroll(String category) {
+    if (_searchController.text.isNotEmpty) {
+      _searchController.clear();
+    }
+    setState(() => _selectedFilter = category);
 
-    Scrollable.ensureVisible(
-      context,
-      duration: const Duration(milliseconds: 480),
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _scrollToCompleteMenu();
+    });
+  }
+
+  void _scrollToCompleteMenu() {
+    if (!_homeScrollController.hasClients) return;
+
+    final initialOffset = _menuOffsetFromKey() ?? _estimatedMenuOffset();
+    _animateHomeTo(initialOffset, duration: const Duration(milliseconds: 550));
+
+    Future<void>.delayed(const Duration(milliseconds: 580), () {
+      if (!mounted || !_homeScrollController.hasClients) return;
+      final exactOffset = _menuOffsetFromKey();
+      if (exactOffset == null) return;
+
+      final distance = (exactOffset - _homeScrollController.offset).abs();
+      if (distance < 6) return;
+
+      _animateHomeTo(
+        exactOffset,
+        duration: const Duration(milliseconds: 240),
+      );
+    });
+  }
+
+  double? _menuOffsetFromKey() {
+    final targetContext = _menuSectionKey.currentContext;
+    final scrollContext = _homeScrollViewKey.currentContext;
+    if (targetContext == null || scrollContext == null) return null;
+
+    final targetBox = targetContext.findRenderObject() as RenderBox?;
+    final scrollBox = scrollContext.findRenderObject() as RenderBox?;
+    if (targetBox == null ||
+        scrollBox == null ||
+        !targetBox.attached ||
+        !scrollBox.attached) {
+      return null;
+    }
+
+    final targetY = targetBox.localToGlobal(Offset.zero).dy;
+    final scrollY = scrollBox.localToGlobal(Offset.zero).dy;
+    final pinnedHeader = MediaQuery.paddingOf(context).top + kToolbarHeight + 10;
+    return _homeScrollController.offset + targetY - scrollY - pinnedHeader;
+  }
+
+  double _estimatedMenuOffset() {
+    final size = MediaQuery.sizeOf(context);
+    final compactAdjustment = size.width < 380 ? -40.0 : 0.0;
+    return 1040.0 + compactAdjustment;
+  }
+
+  void _animateHomeTo(
+    double offset, {
+    required Duration duration,
+  }) {
+    if (!_homeScrollController.hasClients) return;
+    final position = _homeScrollController.position;
+    final safeOffset = offset.clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    _homeScrollController.animateTo(
+      safeOffset.toDouble(),
+      duration: duration,
       curve: Curves.easeOutCubic,
-      alignment: 0.08,
     );
   }
-
-  void _selectCategory(String filter) {
-    setState(() => _selectedFilter = filter);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToMenu());
-  }
-
   void _addProduct(ProductModel product, Offset? origin) {
     ref.read(cartControllerProvider.notifier).addProduct(product);
     _showFlyingCartCue(origin);
-    _showCartToast('Adicionado à sacola');
+    _showCartToast('Adicionado � sacola');
 
     setState(() => _cartPulse = true);
     Future<void>.delayed(const Duration(milliseconds: 260), () {
@@ -565,6 +630,7 @@ class _CategoryCarousel extends StatefulWidget {
 class _CategoryCarouselState extends State<_CategoryCarousel> {
   final _controller = PageController();
   Timer? _timer;
+  DateTime? _lastSelectionAt;
   int _page = 0;
 
   static final _items = [
@@ -629,7 +695,7 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
               final item = _items[index];
               return _CategorySlideCard(
                 item: item,
-                onTap: () => widget.onSelected(item.filter),
+                onTap: () => _selectItem(item),
               );
             },
           ),
@@ -638,6 +704,14 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
         _CarouselDots(count: _items.length, activeIndex: _page),
       ],
     );
+  }
+
+  void _selectItem(_CategoryCarouselItem item) {
+    final now = DateTime.now();
+    final last = _lastSelectionAt;
+    if (last != null && now.difference(last).inMilliseconds < 180) return;
+    _lastSelectionAt = now;
+    widget.onSelected(item.filter);
   }
 }
 
@@ -683,72 +757,84 @@ class _CategorySlideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(26),
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
+    return SizedBox.expand(
+      child: Semantics(
+        button: true,
+        label: 'Filtrar ${item.title}',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
             borderRadius: BorderRadius.circular(26),
-            color: AppTheme.chocolate,
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.chocolate.withOpacity(0.12),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+            onTap: onTap,
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(26),
+                color: AppTheme.chocolate,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.chocolate.withOpacity(0.12),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(26),
-            child: Stack(
-              children: [
-                Positioned.fill(child: _PhotoSurface(photo: item.photo)),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppTheme.ink.withOpacity(0.78),
-                          AppTheme.ink.withOpacity(0.12),
-                        ],
-                        begin: Alignment.bottomLeft,
-                        end: Alignment.topRight,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(26),
+                child: Stack(
+                  children: [
+                    Positioned.fill(child: _PhotoSurface(photo: item.photo)),
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppTheme.ink.withOpacity(0.78),
+                              AppTheme.ink.withOpacity(0.12),
+                            ],
+                            begin: Alignment.bottomLeft,
+                            end: Alignment.topRight,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 16,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: AppTheme.warmWhite,
-                              fontWeight: FontWeight.w900,
-                            ),
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 16,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  color: AppTheme.warmWhite,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            item.subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: AppTheme.cream,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        item.subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.cream,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -967,9 +1053,11 @@ class _FeaturedProductCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.transparent,
-                          AppTheme.ink.withOpacity(0.2),
+                          Colors.black.withOpacity(0.02),
+                          AppTheme.ink.withOpacity(0.12),
+                          AppTheme.ink.withOpacity(0.62),
                         ],
+                        stops: const [0, 0.48, 1],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
@@ -1241,66 +1329,75 @@ class _MenuProductTile extends StatelessWidget {
     final fallbackPhoto = RayPhotos.fallbackForProduct(product);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final compact = MediaQuery.sizeOf(context).width < 380;
-    final imageWidth = compact ? 82.0 : 96.0;
-    final imageHeight = compact ? 96.0 : 108.0;
+    final imageSize = compact ? 86.0 : 96.0;
+    final tileHeight = compact ? 150.0 : 154.0;
     final addButtonSize = compact ? 40.0 : 42.0;
 
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: dark ? AppTheme.darkCard : AppTheme.warmWhite,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: dark ? AppTheme.darkLine : AppTheme.line),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.chocolate.withOpacity(dark ? 0.2 : 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: SizedBox(
-              width: imageWidth,
-              height: imageHeight,
-              child: _PhotoSurface(
-                imageUrl: product.imageUrl,
-                photo: fallbackPhoto,
+    return SizedBox(
+      height: tileHeight,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: dark ? AppTheme.darkCard : AppTheme.warmWhite,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: dark ? AppTheme.darkLine : AppTheme.line),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.chocolate.withOpacity(dark ? 0.2 : 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: SizedBox(
+                width: imageSize,
+                height: imageSize,
+                child: _PhotoSurface(
+                  imageUrl: product.imageUrl,
+                  photo: fallbackPhoto,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: imageHeight),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: dark ? AppTheme.darkText : AppTheme.ink,
-                          fontWeight: FontWeight.w900,
-                          fontSize: compact ? 15 : null,
-                        ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: dark ? AppTheme.darkText : AppTheme.ink,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: compact ? 15 : null,
+                                  height: 1.08,
+                                ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        product.description.isEmpty
+                            ? 'Preparado com carinho na cozinha da Ray.'
+                            : product.description,
+                        maxLines: compact ? 1 : 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              height: 1.2,
+                            ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    product.description.isEmpty
-                        ? 'Preparado com carinho na cozinha da Ray.'
-                        : product.description,
-                    maxLines: compact ? 1 : 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 10),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -1317,6 +1414,7 @@ class _MenuProductTile extends StatelessWidget {
                                   ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       SizedBox(
                         width: addButtonSize,
                         height: addButtonSize,
@@ -1330,8 +1428,8 @@ class _MenuProductTile extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
