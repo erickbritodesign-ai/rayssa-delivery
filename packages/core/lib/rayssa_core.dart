@@ -11,6 +11,7 @@ export 'src/enums/user_role.dart';
 export 'src/models/address_model.dart';
 export 'src/models/cart_item_model.dart';
 export 'src/models/category_model.dart';
+export 'src/models/home_banner_model.dart';
 export 'src/models/order_item_model.dart';
 export 'src/models/order_model.dart';
 export 'src/models/product_model.dart';

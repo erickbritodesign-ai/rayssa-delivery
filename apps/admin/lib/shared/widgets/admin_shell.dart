@@ -29,6 +29,11 @@ class AdminShell extends ConsumerWidget {
               label: 'Início',
             ),
             NavigationDestination(
+              icon: Icon(Icons.storefront_outlined),
+              selectedIcon: Icon(Icons.storefront),
+              label: 'Home',
+            ),
+            NavigationDestination(
               icon: Icon(Icons.category_outlined),
               selectedIcon: Icon(Icons.category),
               label: 'Cat.',
@@ -73,6 +78,10 @@ class AdminShell extends ConsumerWidget {
                 label: Text('Dashboard'),
               ),
               NavigationRailDestination(
+                icon: Icon(Icons.storefront),
+                label: Text('Vitrine'),
+              ),
+              NavigationRailDestination(
                 icon: Icon(Icons.category),
                 label: Text('Categorias'),
               ),
@@ -113,25 +122,28 @@ class AdminShell extends ConsumerWidget {
   }
 
   int _indexForPath(String path) {
-    if (path.startsWith('/categories')) return 1;
-    if (path.startsWith('/products')) return 2;
-    if (path.startsWith('/orders')) return 3;
-    if (path.startsWith('/tables')) return 4;
-    if (path.startsWith('/settings')) return 5;
+    if (path.startsWith('/home')) return 1;
+    if (path.startsWith('/categories')) return 2;
+    if (path.startsWith('/products')) return 3;
+    if (path.startsWith('/orders')) return 4;
+    if (path.startsWith('/tables')) return 5;
+    if (path.startsWith('/settings')) return 6;
     return 0;
   }
 
   String _pathForIndex(int index) {
     switch (index) {
       case 1:
-        return '/categories';
+        return '/home';
       case 2:
-        return '/products';
+        return '/categories';
       case 3:
-        return '/orders';
+        return '/products';
       case 4:
-        return '/tables';
+        return '/orders';
       case 5:
+        return '/tables';
+      case 6:
         return '/settings';
       default:
         return '/';

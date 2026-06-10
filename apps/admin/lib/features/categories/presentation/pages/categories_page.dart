@@ -165,6 +165,9 @@ class CategoriesPage extends ConsumerWidget {
                   name: nameController.text.trim(),
                   sortOrder: int.tryParse(orderController.text) ?? 0,
                   isActive: isActive,
+                  imageUrl: category?.imageUrl,
+                  subtitle: category?.subtitle,
+                  showOnHome: category?.showOnHome ?? true,
                 );
 
                 await ref.read(adminFirestoreProvider).upsertCategory(model);

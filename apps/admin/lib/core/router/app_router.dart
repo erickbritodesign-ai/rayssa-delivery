@@ -6,6 +6,7 @@ import 'package:rayssa_admin/features/auth/presentation/pages/admin_login_page.d
 import 'package:rayssa_admin/features/auth/presentation/providers/admin_auth_providers.dart';
 import 'package:rayssa_admin/features/categories/presentation/pages/categories_page.dart';
 import 'package:rayssa_admin/features/dashboard/presentation/pages/dashboard_page.dart';
+import 'package:rayssa_admin/features/home/presentation/pages/home_vitrine_page.dart';
 import 'package:rayssa_admin/features/orders/presentation/pages/admin_orders_page.dart';
 import 'package:rayssa_admin/features/products/presentation/pages/products_page.dart';
 import 'package:rayssa_admin/features/settings/presentation/pages/settings_page.dart';
@@ -42,6 +43,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/categories',
             builder: (context, state) => const CategoriesPage(),
+          ),
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomeVitrinePage(),
           ),
           GoRoute(
             path: '/products',

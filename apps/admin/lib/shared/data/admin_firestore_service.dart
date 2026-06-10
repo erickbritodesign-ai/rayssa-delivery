@@ -56,6 +56,33 @@ class AdminFirestoreService {
         .delete();
   }
 
+  Stream<List<HomeBannerModel>> watchHomeBanners() {
+    return _firestore
+        .collection(FirestoreCollections.homeBanners)
+        .snapshots()
+        .map((snapshot) {
+      final banners = snapshot.docs
+          .map((doc) => HomeBannerModel.fromFirestore(doc.id, doc.data()))
+          .toList();
+      banners.sort((a, b) => a.order.compareTo(b.order));
+      return banners;
+    });
+  }
+
+  Future<void> upsertHomeBanner(HomeBannerModel banner) {
+    return _firestore
+        .collection(FirestoreCollections.homeBanners)
+        .doc(banner.id.isEmpty ? null : banner.id)
+        .set(banner.toFirestore(), SetOptions(merge: true));
+  }
+
+  Future<void> deleteHomeBanner(String id) {
+    return _firestore
+        .collection(FirestoreCollections.homeBanners)
+        .doc(id)
+        .delete();
+  }
+
   Stream<List<OrderModel>> watchOrders() {
     return _firestore
         .collection(FirestoreCollections.pedidos)

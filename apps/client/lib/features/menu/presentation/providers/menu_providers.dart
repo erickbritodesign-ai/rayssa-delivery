@@ -12,6 +12,10 @@ final categoriesProvider = StreamProvider<List<CategoryModel>>((ref) {
   return ref.watch(menuRepositoryProvider).watchCategories();
 });
 
+final homeBannersProvider = StreamProvider<List<HomeBannerModel>>((ref) {
+  return ref.watch(menuRepositoryProvider).watchHomeBanners();
+});
+
 final selectedCategoryIdProvider = StateProvider<String?>((ref) => null);
 
 final productsProvider = StreamProvider<List<ProductModel>>((ref) {

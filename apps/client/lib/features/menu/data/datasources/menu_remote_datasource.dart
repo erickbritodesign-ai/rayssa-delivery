@@ -22,6 +22,22 @@ class MenuRemoteDatasource {
     });
   }
 
+  Stream<List<HomeBannerModel>> watchHomeBanners() {
+    return _firestore
+        .collection(FirestoreCollections.homeBanners)
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) {
+      final banners = snapshot.docs
+          .map((doc) => HomeBannerModel.fromFirestore(doc.id, doc.data()))
+          .where((banner) => banner.imageUrl.trim().isNotEmpty)
+          .toList();
+
+      banners.sort((a, b) => a.order.compareTo(b.order));
+      return banners;
+    });
+  }
+
   Stream<List<ProductModel>> watchProducts({String? categoryId}) {
     Query<Map<String, dynamic>> query = _firestore
         .collection(FirestoreCollections.produtos)

@@ -10,6 +10,10 @@ class ProductModel extends Equatable {
     this.imageUrl,
     this.isAvailable = true,
     this.isActive = true,
+    this.isFeatured = false,
+    this.featuredOrder = 0,
+    this.featuredBadgeLabel,
+    this.featuredImageUrl,
   });
 
   final String id;
@@ -20,6 +24,10 @@ class ProductModel extends Equatable {
   final String? imageUrl;
   final bool isAvailable;
   final bool isActive;
+  final bool isFeatured;
+  final int featuredOrder;
+  final String? featuredBadgeLabel;
+  final String? featuredImageUrl;
 
   factory ProductModel.fromFirestore(String id, Map<String, dynamic> data) {
     return ProductModel(
@@ -31,6 +39,10 @@ class ProductModel extends Equatable {
       imageUrl: data['imageUrl'] as String?,
       isAvailable: data['isAvailable'] as bool? ?? true,
       isActive: data['isActive'] as bool? ?? true,
+      isFeatured: data['isFeatured'] as bool? ?? false,
+      featuredOrder: (data['featuredOrder'] as num?)?.toInt() ?? 0,
+      featuredBadgeLabel: data['featuredBadgeLabel'] as String?,
+      featuredImageUrl: data['featuredImageUrl'] as String?,
     );
   }
 
@@ -43,6 +55,10 @@ class ProductModel extends Equatable {
       'imageUrl': imageUrl,
       'isAvailable': isAvailable,
       'isActive': isActive,
+      'isFeatured': isFeatured,
+      'featuredOrder': featuredOrder,
+      'featuredBadgeLabel': featuredBadgeLabel,
+      'featuredImageUrl': featuredImageUrl,
     };
   }
 
@@ -55,6 +71,10 @@ class ProductModel extends Equatable {
     String? imageUrl,
     bool? isAvailable,
     bool? isActive,
+    bool? isFeatured,
+    int? featuredOrder,
+    String? featuredBadgeLabel,
+    String? featuredImageUrl,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -65,6 +85,10 @@ class ProductModel extends Equatable {
       imageUrl: imageUrl ?? this.imageUrl,
       isAvailable: isAvailable ?? this.isAvailable,
       isActive: isActive ?? this.isActive,
+      isFeatured: isFeatured ?? this.isFeatured,
+      featuredOrder: featuredOrder ?? this.featuredOrder,
+      featuredBadgeLabel: featuredBadgeLabel ?? this.featuredBadgeLabel,
+      featuredImageUrl: featuredImageUrl ?? this.featuredImageUrl,
     );
   }
 
@@ -78,5 +102,9 @@ class ProductModel extends Equatable {
     imageUrl,
     isAvailable,
     isActive,
+    isFeatured,
+    featuredOrder,
+    featuredBadgeLabel,
+    featuredImageUrl,
   ];
 }

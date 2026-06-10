@@ -418,6 +418,10 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                   imageUrl: cleanedImageUrl.isEmpty ? null : cleanedImageUrl,
                   isAvailable: isAvailable,
                   isActive: isActive,
+                  isFeatured: product?.isFeatured ?? false,
+                  featuredOrder: product?.featuredOrder ?? 0,
+                  featuredBadgeLabel: product?.featuredBadgeLabel,
+                  featuredImageUrl: product?.featuredImageUrl,
                 );
                 await ref.read(adminFirestoreProvider).upsertProduct(model);
                 if (context.mounted) Navigator.pop(context);

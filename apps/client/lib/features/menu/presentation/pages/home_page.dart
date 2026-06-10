@@ -44,7 +44,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   String _selectedFilter = _allFilter;
   bool _cartPulse = false;
   bool _toastVisible = false;
-  String _toastMessage = 'Adicionado Ã  sacola';
+  String _toastMessage = 'Adicionado \u00e0 sacola';
   Timer? _toastTimer;
 
   @override
@@ -58,6 +58,10 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final productsAsync = ref.watch(productsProvider);
+    final homeBanners =
+        ref.watch(homeBannersProvider).valueOrNull ?? const <HomeBannerModel>[];
+    final homeCategories =
+        ref.watch(categoriesProvider).valueOrNull ?? const <CategoryModel>[];
     final cartCount = ref.watch(cartItemCountProvider);
     final currency = NumberFormat.simpleCurrency(locale: 'pt_BR');
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -161,9 +165,20 @@ class _HomePageState extends ConsumerState<HomePage> {
               productsAsync.when(
                 data: (products) => SliverList(
                   delegate: SliverChildListDelegate.fixed([
+                    if (homeBanners.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                        child: _HomeBannersCarousel(
+                          banners: homeBanners,
+                          onSelected: _handleBannerTap,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                    ],
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                       child: _CategoryCarousel(
+                        items: _homeCategoryItems(homeCategories),
                         onSelected: _selectCategoryAndScroll,
                       ),
                     ),
@@ -176,7 +191,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                     ),
                     _FeaturedProductsCarousel(
-                      products: _prioritizedProducts(products),
+                      products: _featuredProducts(products),
                       currency: currency,
                       onAdd: _addProduct,
                     ),
@@ -303,6 +318,35 @@ class _HomePageState extends ConsumerState<HomePage> {
     return _prioritizedProducts(filtered);
   }
 
+  void _handleBannerTap(HomeBannerModel banner) {
+    final targetType = banner.targetType.trim().toLowerCase();
+    final rawTarget = banner.targetId?.trim();
+    final target = rawTarget != null && rawTarget.isNotEmpty
+        ? rawTarget
+        : banner.title.trim();
+
+    if (targetType == 'category') {
+      final category = _categoryFilterFromTarget(target);
+      if (category == null) return;
+      _selectCategoryAndScroll(category);
+      return;
+    }
+
+    if (targetType == 'product' && target.isNotEmpty) {
+      _searchProductAndScroll(target);
+    }
+  }
+
+  void _searchProductAndScroll(String query) {
+    _searchController.text = query;
+    setState(() => _selectedFilter = _allFilter);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _scrollToCompleteMenu();
+    });
+  }
+
   void _selectCategoryAndScroll(String category) {
     if (_searchController.text.isNotEmpty) {
       _searchController.clear();
@@ -378,10 +422,11 @@ class _HomePageState extends ConsumerState<HomePage> {
       curve: Curves.easeOutCubic,
     );
   }
+
   void _addProduct(ProductModel product, Offset? origin) {
     ref.read(cartControllerProvider.notifier).addProduct(product);
     _showFlyingCartCue(origin);
-    _showCartToast('Adicionado à sacola');
+    _showCartToast('Adicionado \u00e0 sacola');
 
     setState(() => _cartPulse = true);
     Future<void>.delayed(const Duration(milliseconds: 260), () {
@@ -618,9 +663,257 @@ String _categoryLabelForProduct(ProductModel product) {
   return 'Past\u00e9is';
 }
 
-class _CategoryCarousel extends StatefulWidget {
-  const _CategoryCarousel({required this.onSelected});
+class _HomeBannersCarousel extends StatefulWidget {
+  const _HomeBannersCarousel({required this.banners, required this.onSelected});
 
+  final List<HomeBannerModel> banners;
+  final ValueChanged<HomeBannerModel> onSelected;
+
+  @override
+  State<_HomeBannersCarousel> createState() => _HomeBannersCarouselState();
+}
+
+class _HomeBannersCarouselState extends State<_HomeBannersCarousel> {
+  final _controller = PageController();
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 164,
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: widget.banners.length,
+            onPageChanged: (index) => setState(() => _page = index),
+            itemBuilder: (context, index) {
+              final banner = widget.banners[index];
+              return _HomeBannerSlide(
+                banner: banner,
+                onTap: () => widget.onSelected(banner),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
+        _CarouselDots(count: widget.banners.length, activeIndex: _page),
+      ],
+    );
+  }
+}
+
+class _HomeBannerSlide extends StatelessWidget {
+  const _HomeBannerSlide({required this.banner, required this.onTap});
+
+  final HomeBannerModel banner;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: onTap,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            color: AppTheme.chocolate,
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.chocolate.withOpacity(0.14),
+                blurRadius: 22,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: Stack(
+              children: [
+                Positioned.fill(child: _PhotoSurface(imageUrl: banner.imageUrl)),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.ink.withOpacity(0.72),
+                          AppTheme.ink.withOpacity(0.16),
+                        ],
+                        begin: Alignment.bottomLeft,
+                        end: Alignment.topRight,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        banner.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: AppTheme.warmWhite,
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        banner.subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.cream,
+                              fontWeight: FontWeight.w800,
+                              height: 1.25,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+List<ProductModel> _featuredProducts(List<ProductModel> products) {
+  final featured = products
+      .where((product) =>
+          product.isFeatured && product.isActive && product.isAvailable)
+      .toList();
+
+  if (featured.isEmpty) return _prioritizedProducts(products);
+
+  featured.sort((a, b) {
+    final order = a.featuredOrder.compareTo(b.featuredOrder);
+    if (order != 0) return order;
+    return a.name.compareTo(b.name);
+  });
+  return featured;
+}
+
+String? _featuredBadgeLabel(ProductModel product, int index) {
+  final configured = product.featuredBadgeLabel?.trim();
+  if (product.isFeatured) {
+    return configured == null || configured.isEmpty ? '\u{1F525} Mais pedido' : configured;
+  }
+  if (index == 0 || _isPastelDeCarne(product)) return '\u{1F525} Mais pedido';
+  return null;
+}
+
+List<_CategoryCarouselItem> _homeCategoryItems(List<CategoryModel> categories) {
+  final items = categories
+      .where((category) => category.isActive && category.showOnHome)
+      .map((category) {
+        final label = _categoryFilterFromTarget(category.name) ?? category.name;
+        return _CategoryCarouselItem(
+          filter: label,
+          title: category.name,
+          subtitle: category.subtitle?.trim().isNotEmpty == true
+              ? category.subtitle!.trim()
+              : _defaultCategorySubtitle(label),
+          imageUrl: category.imageUrl,
+          photo: _photoForCategoryLabel(label),
+        );
+      })
+      .where((item) => _filterLabels.contains(item.filter))
+      .toList();
+
+  if (items.isEmpty) return _fallbackCategoryItems;
+  return items;
+}
+
+final _fallbackCategoryItems = [
+  _CategoryCarouselItem(
+    filter: 'Past\u00e9is',
+    title: 'Past\u00e9is',
+    subtitle: 'Crocantes e bem recheados',
+    photo: RayPhotos.pastel,
+  ),
+  _CategoryCarouselItem(
+    filter: 'Salgados',
+    title: 'Salgados',
+    subtitle: 'Receitas caseiras',
+    photo: RayPhotos.panqueca,
+  ),
+  _CategoryCarouselItem(
+    filter: 'Bebidas',
+    title: 'Bebidas',
+    subtitle: 'Geladinhas para acompanhar',
+    photo: RayPhotos.caldoCana,
+  ),
+  _CategoryCarouselItem(
+    filter: 'Doces',
+    title: 'Doces',
+    subtitle: 'Um carinho depois do salgado',
+    photo: RayPhotos.doce,
+  ),
+];
+
+String? _categoryFilterFromTarget(String value) {
+  final text = normalizedCatalogText(value);
+  if (text.contains('past')) return 'Past\u00e9is';
+  if (text.contains('salg') ||
+      text.contains('panqueca') ||
+      text.contains('pizza') ||
+      text.contains('lasanha')) {
+    return 'Salgados';
+  }
+  if (text.contains('bebida') ||
+      text.contains('refri') ||
+      text.contains('refrigerante') ||
+      text.contains('suco')) {
+    return 'Bebidas';
+  }
+  if (text.contains('caldo') || text.contains('cana')) return 'Caldo de Cana';
+  if (text.contains('doce') || text.contains('bolo') || text.contains('pudim')) {
+    return 'Doces';
+  }
+  return null;
+}
+
+String _defaultCategorySubtitle(String label) {
+  return switch (label) {
+    'Past\u00e9is' => 'Crocantes e bem recheados',
+    'Salgados' => 'Receitas caseiras',
+    'Bebidas' => 'Geladinhas para acompanhar',
+    'Caldo de Cana' => 'Feito na hora',
+    'Doces' => 'Um carinho depois do salgado',
+    _ => 'Especial da Ray',
+  };
+}
+
+RayPhoto _photoForCategoryLabel(String label) {
+  return switch (label) {
+    'Past\u00e9is' => RayPhotos.pastel,
+    'Salgados' => RayPhotos.panqueca,
+    'Bebidas' => RayPhotos.caldoCana,
+    'Caldo de Cana' => RayPhotos.caldoCana,
+    'Doces' => RayPhotos.doce,
+    _ => RayPhotos.pastel,
+  };
+}
+
+class _CategoryCarousel extends StatefulWidget {
+  const _CategoryCarousel({required this.items, required this.onSelected});
+
+  final List<_CategoryCarouselItem> items;
   final ValueChanged<String> onSelected;
 
   @override
@@ -633,39 +926,12 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
   DateTime? _lastSelectionAt;
   int _page = 0;
 
-  static final _items = [
-    _CategoryCarouselItem(
-      filter: 'Past\u00e9is',
-      title: 'Past\u00e9is',
-      subtitle: 'Crocantes e bem recheados',
-      photo: RayPhotos.pastel,
-    ),
-    _CategoryCarouselItem(
-      filter: 'Salgados',
-      title: 'Salgados',
-      subtitle: 'Receitas caseiras',
-      photo: RayPhotos.panqueca,
-    ),
-    _CategoryCarouselItem(
-      filter: 'Bebidas',
-      title: 'Bebidas',
-      subtitle: 'Geladinhas para acompanhar',
-      photo: RayPhotos.caldoCana,
-    ),
-    _CategoryCarouselItem(
-      filter: 'Doces',
-      title: 'Doces',
-      subtitle: 'Um carinho depois do salgado',
-      photo: RayPhotos.doce,
-    ),
-  ];
-
   @override
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!_controller.hasClients) return;
-      final next = (_page + 1) % _items.length;
+      final next = (_page + 1) % widget.items.length;
       _controller.animateToPage(
         next,
         duration: const Duration(milliseconds: 520),
@@ -689,10 +955,10 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
           height: 158,
           child: PageView.builder(
             controller: _controller,
-            itemCount: _items.length,
+            itemCount: widget.items.length,
             onPageChanged: (index) => setState(() => _page = index),
             itemBuilder: (context, index) {
-              final item = _items[index];
+              final item = widget.items[index];
               return _CategorySlideCard(
                 item: item,
                 onTap: () => _selectItem(item),
@@ -701,7 +967,7 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
           ),
         ),
         const SizedBox(height: 10),
-        _CarouselDots(count: _items.length, activeIndex: _page),
+        _CarouselDots(count: widget.items.length, activeIndex: _page),
       ],
     );
   }
@@ -782,7 +1048,12 @@ class _CategorySlideCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(26),
                 child: Stack(
                   children: [
-                    Positioned.fill(child: _PhotoSurface(photo: item.photo)),
+                    Positioned.fill(
+                      child: _PhotoSurface(
+                        imageUrl: item.imageUrl,
+                        photo: item.photo,
+                      ),
+                    ),
                     Positioned.fill(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
@@ -849,12 +1120,14 @@ class _CategoryCarouselItem {
     required this.title,
     required this.subtitle,
     required this.photo,
+    this.imageUrl,
   });
 
   final String filter;
   final String title;
   final String subtitle;
   final RayPhoto photo;
+  final String? imageUrl;
 }
 
 class _StorySection extends StatelessWidget {
@@ -987,7 +1260,10 @@ class _FeaturedProductsCarouselState extends State<_FeaturedProductsCarousel> {
                 return _FeaturedProductCard(
                   product: product,
                   price: widget.currency.format(product.price),
-                  showBadge: index == 0 || _isPastelDeCarne(product),
+                  badgeLabel: _featuredBadgeLabel(product, index),
+                  imageUrl: product.featuredImageUrl?.trim().isNotEmpty == true
+                      ? product.featuredImageUrl
+                      : product.imageUrl,
                   onAdd: (origin) => widget.onAdd(product, origin),
                 );
               },
@@ -1005,13 +1281,15 @@ class _FeaturedProductCard extends StatelessWidget {
   const _FeaturedProductCard({
     required this.product,
     required this.price,
-    required this.showBadge,
+    required this.badgeLabel,
+    required this.imageUrl,
     required this.onAdd,
   });
 
   final ProductModel product;
   final String price;
-  final bool showBadge;
+  final String? badgeLabel;
+  final String? imageUrl;
   final ValueChanged<Offset?> onAdd;
 
   @override
@@ -1044,7 +1322,7 @@ class _FeaturedProductCard extends StatelessWidget {
               children: [
                 Positioned.fill(
                   child: _PhotoSurface(
-                    imageUrl: product.imageUrl,
+                    imageUrl: imageUrl,
                     photo: fallbackPhoto,
                   ),
                 ),
@@ -1064,11 +1342,11 @@ class _FeaturedProductCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (showBadge)
+                if (badgeLabel != null && badgeLabel!.trim().isNotEmpty)
                   Positioned(
                     left: 14,
                     top: 14,
-                    child: _GoldBadge(label: '\u{1F525} Mais pedido'),
+                    child: _GoldBadge(label: badgeLabel!),
                   ),
               ],
             ),

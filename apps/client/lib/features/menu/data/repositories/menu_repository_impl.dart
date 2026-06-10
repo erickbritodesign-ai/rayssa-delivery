@@ -12,6 +12,10 @@ class MenuRepositoryImpl implements MenuRepository {
       _datasource.watchCategories();
 
   @override
+  Stream<List<HomeBannerModel>> watchHomeBanners() =>
+      _datasource.watchHomeBanners();
+
+  @override
   Stream<List<ProductModel>> watchProducts({String? categoryId}) =>
       _datasource.watchProducts(categoryId: categoryId);
 }
