@@ -49,6 +49,11 @@ class AdminShell extends ConsumerWidget {
               label: 'Ped.',
             ),
             NavigationDestination(
+              icon: Icon(Icons.query_stats_outlined),
+              selectedIcon: Icon(Icons.query_stats),
+              label: 'Rel.',
+            ),
+            NavigationDestination(
               icon: Icon(Icons.table_restaurant_outlined),
               selectedIcon: Icon(Icons.table_restaurant),
               label: 'Mesas',
@@ -94,6 +99,10 @@ class AdminShell extends ConsumerWidget {
                 label: Text('Pedidos'),
               ),
               NavigationRailDestination(
+                icon: Icon(Icons.query_stats),
+                label: Text('Relatórios'),
+              ),
+              NavigationRailDestination(
                 icon: Icon(Icons.table_restaurant),
                 label: Text('Mesas'),
               ),
@@ -126,8 +135,9 @@ class AdminShell extends ConsumerWidget {
     if (path.startsWith('/categories')) return 2;
     if (path.startsWith('/products')) return 3;
     if (path.startsWith('/orders')) return 4;
-    if (path.startsWith('/tables')) return 5;
-    if (path.startsWith('/settings')) return 6;
+    if (path.startsWith('/reports')) return 5;
+    if (path.startsWith('/tables')) return 6;
+    if (path.startsWith('/settings')) return 7;
     return 0;
   }
 
@@ -142,8 +152,10 @@ class AdminShell extends ConsumerWidget {
       case 4:
         return '/orders';
       case 5:
-        return '/tables';
+        return '/reports';
       case 6:
+        return '/tables';
+      case 7:
         return '/settings';
       default:
         return '/';
