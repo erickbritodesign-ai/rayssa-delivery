@@ -30,7 +30,7 @@ class HomeVitrinePage extends ConsumerWidget {
         title: const Text('Vitrine'),
         actions: [
           IconButton(
-            tooltip: 'Novo banner',
+            tooltip: 'Novo banner extra',
             icon: const Icon(Icons.add_photo_alternate_outlined),
             onPressed: () => _showBannerDialog(context, ref),
           ),
@@ -45,51 +45,14 @@ class HomeVitrinePage extends ConsumerWidget {
               _IntroCard(
                 title: 'Home do aplicativo',
                 subtitle:
-                    'Controle banners, categorias e os produtos em destaque usando URLs de imagem.',
+                    'Controle o carrossel principal, campanhas extras e os produtos em destaque usando URLs de imagem.',
                 icon: Icons.storefront_outlined,
               ),
               const SizedBox(height: 18),
               _SectionCard(
-                title: 'Banners',
-                subtitle: 'Carrossel visual da Home',
-                actionLabel: 'Adicionar',
-                onAction: () => _showBannerDialog(context, ref),
-                child: bannersAsync.when(
-                  data: (banners) => banners.isEmpty
-                      ? const _EmptyMessage(
-                          message: 'Nenhum banner cadastrado ainda.',
-                        )
-                      : Column(
-                          children: [
-                            for (final banner in banners)
-                              _BannerAdminTile(
-                                banner: banner,
-                                onEdit: () => _showBannerDialog(
-                                  context,
-                                  ref,
-                                  banner: banner,
-                                ),
-                                onToggle: () => ref
-                                    .read(adminFirestoreProvider)
-                                    .upsertHomeBanner(
-                                      banner.copyWith(
-                                        isActive: !banner.isActive,
-                                      ),
-                                    ),
-                                onDelete: () => ref
-                                    .read(adminFirestoreProvider)
-                                    .deleteHomeBanner(banner.id),
-                              ),
-                          ],
-                        ),
-                  loading: () => const _LoadingLine(),
-                  error: (e, _) => _EmptyMessage(message: 'Erro: $e'),
-                ),
-              ),
-              const SizedBox(height: 18),
-              _SectionCard(
-                title: 'Categorias em destaque',
-                subtitle: 'Dados usados no carrossel de categorias',
+                title: 'Carrossel principal da Home',
+                subtitle:
+                    'Controle os cards principais: Pastéis, Salgados, Bebidas e Doces.',
                 child: categoriesAsync.when(
                   data: (categories) {
                     final sorted = [...categories]
@@ -114,6 +77,51 @@ class HomeVitrinePage extends ConsumerWidget {
                   },
                   loading: () => const _LoadingLine(),
                   error: (e, _) => _EmptyMessage(message: 'Erro: $e'),
+                ),
+              ),
+              const SizedBox(height: 18),
+              _SectionCard(
+                title: 'Banners extras / campanhas',
+                subtitle: 'Use apenas para promoções ou avisos especiais.',
+                actionLabel: 'Adicionar campanha',
+                onAction: () => _showBannerDialog(context, ref),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _BannerUsageNotice(),
+                    const SizedBox(height: 12),
+                    bannersAsync.when(
+                      data: (banners) => banners.isEmpty
+                          ? const _EmptyMessage(
+                              message: 'Nenhum banner extra cadastrado ainda.',
+                            )
+                          : Column(
+                              children: [
+                                for (final banner in banners)
+                                  _BannerAdminTile(
+                                    banner: banner,
+                                    onEdit: () => _showBannerDialog(
+                                      context,
+                                      ref,
+                                      banner: banner,
+                                    ),
+                                    onToggle: () => ref
+                                        .read(adminFirestoreProvider)
+                                        .upsertHomeBanner(
+                                          banner.copyWith(
+                                            isActive: !banner.isActive,
+                                          ),
+                                        ),
+                                    onDelete: () => ref
+                                        .read(adminFirestoreProvider)
+                                        .deleteHomeBanner(banner.id),
+                                  ),
+                              ],
+                            ),
+                      loading: () => const _LoadingLine(),
+                      error: (e, _) => _EmptyMessage(message: 'Erro: $e'),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 18),
@@ -182,7 +190,7 @@ class HomeVitrinePage extends ConsumerWidget {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text(banner == null ? 'Novo banner' : 'Editar banner'),
+          title: Text(banner == null ? 'Novo banner extra' : 'Editar banner extra'),
           content: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: 440,
@@ -193,6 +201,8 @@ class HomeVitrinePage extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _ImagePreview(imageUrl: imageUrl),
+                  const SizedBox(height: 10),
+                  const _ImageUrlHelp(),
                   const SizedBox(height: 14),
                   TextField(
                     controller: titleController,
@@ -206,6 +216,8 @@ class HomeVitrinePage extends ConsumerWidget {
                     controller: imageController,
                     decoration: const InputDecoration(
                       labelText: 'URL da imagem',
+                      helperText:
+                          'Use link direto HTTPS de imagem (.jpg, .png ou .webp).',
                     ),
                     keyboardType: TextInputType.url,
                     onChanged: (value) {
@@ -306,6 +318,8 @@ class HomeVitrinePage extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _ImagePreview(imageUrl: imageUrl),
+                  const SizedBox(height: 10),
+                  const _ImageUrlHelp(),
                   const SizedBox(height: 14),
                   TextField(
                     controller: subtitleController,
@@ -317,6 +331,8 @@ class HomeVitrinePage extends ConsumerWidget {
                     controller: imageController,
                     decoration: const InputDecoration(
                       labelText: 'URL da imagem',
+                      helperText:
+                          'Use link direto HTTPS de imagem (.jpg, .png ou .webp).',
                     ),
                     keyboardType: TextInputType.url,
                     onChanged: (value) {
@@ -407,6 +423,8 @@ class HomeVitrinePage extends ConsumerWidget {
                   _ImagePreview(
                     imageUrl: imageUrl.isEmpty ? product.imageUrl : imageUrl,
                   ),
+                  const SizedBox(height: 10),
+                  const _ImageUrlHelp(),
                   const SizedBox(height: 14),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -430,6 +448,8 @@ class HomeVitrinePage extends ConsumerWidget {
                     decoration: const InputDecoration(
                       labelText: 'URL da imagem de destaque',
                       hintText: 'Opcional. Se vazio, usa a imagem do produto.',
+                      helperText:
+                          'Evite links do Google Imagens, Drive, Instagram ou Pinterest.',
                     ),
                     keyboardType: TextInputType.url,
                     onChanged: (value) {
@@ -532,6 +552,46 @@ class _IntroCard extends StatelessWidget {
                       ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class _BannerUsageNotice extends StatelessWidget {
+  const _BannerUsageNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFECC9B2)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.campaign_outlined,
+            color: Color(0xFF7B2E1F),
+            size: 18,
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Para o uso normal, edite o carrossel principal acima. Use banners extras apenas para promoções. Se houver banners ativos, eles podem substituir o carrossel principal no topo da Home para evitar duplicidade.',
+              style: TextStyle(
+                color: Color(0xFF7B2E1F),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                height: 1.25,
+              ),
             ),
           ),
         ],
@@ -862,14 +922,135 @@ class _ImageOrPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = imageUrl?.trim();
-    if (url != null && url.isNotEmpty) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const _ImagePlaceholder(),
+    if (url == null || url.isEmpty) {
+      return const _ImagePlaceholder();
+    }
+
+    if (!_isProbablyUsableImageUrl(url)) {
+      return const _ImageUrlProblem(
+        message:
+            'URL parece ser página/link indireto. Use um link direto HTTPS de imagem.',
       );
     }
-    return const _ImagePlaceholder();
+
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => const _ImageUrlProblem(
+        message:
+            'Não foi possível carregar esta imagem. Troque por uma URL direta HTTPS.',
+      ),
+    );
+  }
+}
+
+bool _isProbablyUsableImageUrl(String url) {
+  final uri = Uri.tryParse(url.trim());
+  if (uri == null || !uri.hasScheme || uri.scheme.toLowerCase() != 'https') {
+    return false;
+  }
+
+  final host = uri.host.toLowerCase();
+  const blockedHosts = [
+    'google.com',
+    'www.google.com',
+    'images.google.com',
+    'drive.google.com',
+    'instagram.com',
+    'www.instagram.com',
+    'facebook.com',
+    'www.facebook.com',
+    'pinterest.com',
+    'br.pinterest.com',
+    'www.pinterest.com',
+  ];
+
+  if (blockedHosts.any((blocked) => host == blocked || host.endsWith('.$blocked'))) {
+    return false;
+  }
+
+  return true;
+}
+
+class _ImageUrlHelp extends StatelessWidget {
+  const _ImageUrlHelp();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFECC9B2)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline,
+            color: Color(0xFF7B2E1F),
+            size: 18,
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Use URL direta HTTPS da imagem. Evite links do Google Imagens, Drive, Instagram, Facebook ou Pinterest. Se o preview não carregar aqui, pode aparecer diferente no app. Quando houver banners ativos, eles substituem o carrossel superior de categorias na Home para evitar banner duplicado.',
+              style: TextStyle(
+                color: Color(0xFF7B2E1F),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ImageUrlProblem extends StatelessWidget {
+  const _ImageUrlProblem({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFF3E0), Color(0xFFECC9B2)],
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.broken_image_outlined,
+            color: Color(0xFF7B2E1F),
+            size: 30,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF7B2E1F),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

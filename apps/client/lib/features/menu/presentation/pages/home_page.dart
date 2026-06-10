@@ -174,14 +174,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                         ),
                       ),
                       const SizedBox(height: 18),
-                    ],
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                      child: _CategoryCarousel(
-                        items: _homeCategoryItems(homeCategories),
-                        onSelected: _selectCategoryAndScroll,
+                    ] else ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                        child: _CategoryCarousel(
+                          items: _homeCategoryItems(homeCategories),
+                          onSelected: _selectCategoryAndScroll,
+                        ),
                       ),
-                    ),
+                    ],
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
                       child: const _SectionHeader(
@@ -1885,7 +1886,9 @@ class _PhotoSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = imageUrl ?? photo?.url;
+    final url = imageUrl?.trim().isNotEmpty == true
+        ? imageUrl!.trim()
+        : photo?.url;
 
     if (url != null && url.isNotEmpty) {
       return Image.network(
