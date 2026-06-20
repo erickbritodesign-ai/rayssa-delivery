@@ -52,22 +52,30 @@ class _AdminLoginPageState extends ConsumerState<AdminLoginPage> {
       );
       return;
     }
-    final preferences = await SharedPreferences.getInstance();
-    if (_keepConnected) {
-      await preferences.setString('admin.rememberedEmail', email);
-    } else {
-      await preferences.remove('admin.rememberedEmail');
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      if (_keepConnected) {
+        await preferences.setString('admin.rememberedEmail', email);
+      } else {
+        await preferences.remove('admin.rememberedEmail');
+      }
+    } catch (_) {
+      // SharedPreferences é apenas conveniência; a sessão do Firebase continua.
     }
   }
 
   Future<void> _loadRememberedEmail() async {
-    final preferences = await SharedPreferences.getInstance();
-    final email = preferences.getString('admin.rememberedEmail');
-    if (!mounted || email == null || email.isEmpty) return;
-    setState(() {
-      _emailController.text = email;
-      _keepConnected = true;
-    });
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final email = preferences.getString('admin.rememberedEmail');
+      if (!mounted || email == null || email.isEmpty) return;
+      setState(() {
+        _emailController.text = email;
+        _keepConnected = true;
+      });
+    } catch (_) {
+      // Sem plugin/storage disponível, o login abre normalmente sem e-mail.
+    }
   }
 
   @override

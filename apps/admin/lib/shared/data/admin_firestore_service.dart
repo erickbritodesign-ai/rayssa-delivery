@@ -187,7 +187,7 @@ class AdminFirestoreService {
     return calculateLoyaltyPointsFromProducts(order);
   }
 
-  Stream<List<TableModel>> watchTables() {
+  Stream<List<TableModel>> watchTables({int count = defaultTableCount}) {
     return _firestore
         .collection(FirestoreCollections.tables)
         .orderBy('number')
@@ -197,15 +197,15 @@ class AdminFirestoreService {
           .map((doc) => TableModel.fromFirestore(doc.id, doc.data()))
           .toList();
 
-      return mergeWithDefaultTables(tables);
+      return mergeWithDefaultTables(tables, count: count);
     });
   }
 
-  Future<void> ensureDefaultTables() async {
+  Future<void> ensureDefaultTables({int count = defaultTableCount}) async {
     final snapshot = await _firestore
         .collection(FirestoreCollections.tables)
         .where('number', isGreaterThanOrEqualTo: 1)
-        .where('number', isLessThanOrEqualTo: defaultTableCount)
+        .where('number', isLessThanOrEqualTo: count)
         .get();
     final existingNumbers = snapshot.docs
         .map((doc) => (doc.data()['number'] as num?)?.toInt())
@@ -214,7 +214,7 @@ class AdminFirestoreService {
     final batch = _firestore.batch();
     var hasWrites = false;
 
-    for (var number = 1; number <= defaultTableCount; number++) {
+    for (var number = 1; number <= count; number++) {
       if (existingNumbers.contains(number)) continue;
 
       hasWrites = true;
@@ -601,6 +601,7 @@ class AdminFirestoreService {
           'instagram': '',
           'pixKey': '',
           'deliveryFee': 5,
+          'tableCount': 10,
           'isOpen': true,
         };
       }
@@ -616,6 +617,44 @@ class AdminFirestoreService {
       },
       SetOptions(merge: true),
     );
+  }
+
+  Stream<List<DeliveryZoneModel>> watchDeliveryZones() {
+    return _firestore
+        .collection(FirestoreCollections.deliveryZones)
+        .orderBy('order')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => DeliveryZoneModel.fromFirestore(doc.id, doc.data()),
+              )
+              .toList(),
+        );
+  }
+
+  Future<void> saveDeliveryZone(DeliveryZoneModel zone) {
+    final ref = _firestore
+        .collection(FirestoreCollections.deliveryZones)
+        .doc(zone.id.isEmpty ? null : zone.id);
+    return ref.set(
+      {
+        'name': zone.name.trim(),
+        'fee': zone.fee,
+        'isActive': zone.isActive,
+        'order': zone.order,
+        if (zone.id.isEmpty) 'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> deleteDeliveryZone(String id) {
+    return _firestore
+        .collection(FirestoreCollections.deliveryZones)
+        .doc(id)
+        .delete();
   }
 }
 

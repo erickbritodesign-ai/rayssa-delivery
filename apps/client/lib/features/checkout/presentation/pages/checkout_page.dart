@@ -9,7 +9,6 @@ import 'package:rayssa_client/core/theme/app_theme.dart';
 import 'package:rayssa_client/core/widgets/ray_brand.dart';
 import 'package:rayssa_client/features/auth/presentation/providers/auth_providers.dart';
 import 'package:rayssa_client/features/cart/presentation/providers/cart_providers.dart';
-import 'package:rayssa_client/features/checkout/domain/models/delivery_area.dart';
 import 'package:rayssa_client/features/checkout/presentation/providers/checkout_providers.dart';
 import 'package:rayssa_client/features/tables/presentation/providers/table_providers.dart';
 import 'package:rayssa_core/rayssa_core.dart';
@@ -27,7 +26,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _complementController = TextEditingController();
   final _notesController = TextEditingController();
 
-  DeliveryArea? _selectedArea;
+  DeliveryZoneModel? _selectedArea;
   TableModel? _selectedTable;
   _PaymentSelection? _selectedPayment;
   _LoyaltyRewardOption? _selectedLoyaltyReward;
@@ -134,7 +133,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final subtotal = ref.read(cartSubtotalProvider);
     final reward = _selectedLoyaltyReward;
     final discount = _loyaltyDiscountFor(subtotal);
-    final orderTotal = _finalTotal(subtotal: subtotal, deliveryFee: deliveryFee);
+    final orderTotal =
+        _finalTotal(subtotal: subtotal, deliveryFee: deliveryFee);
     AddressModel? address;
 
     if (deliveryType == DeliveryType.delivery) {
@@ -147,6 +147,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         state: 'ES',
         zipCode: '29950-000',
         deliveryFee: deliveryFee,
+        deliveryZoneId: area.id,
         complement: _complementController.text.trim().isEmpty
             ? null
             : _complementController.text.trim(),
@@ -326,6 +327,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final deliveryType = ref.watch(deliveryTypeProvider);
     final checkoutState = ref.watch(checkoutControllerProvider);
     final tablesAsync = ref.watch(tablesProvider);
+    final deliveryZonesAsync = ref.watch(activeDeliveryZonesProvider);
     final currentUser = ref.watch(currentUserProvider).valueOrNull;
     final loyaltyPoints = currentUser?.loyaltyPoints ?? 0;
     final canAccessDineIn = currentUser?.canAccessDineIn ?? false;
@@ -350,8 +352,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     if ((!canUseLoyalty ||
-            selectedReward != null &&
-                loyaltyPoints < selectedReward.points) &&
+            selectedReward != null && loyaltyPoints < selectedReward.points) &&
         selectedReward != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -415,26 +416,39 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     decoration: const InputDecoration(labelText: 'Número'),
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<DeliveryArea>(
-                    value: _selectedArea,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Bairro',
-                      prefixIcon: Icon(Icons.map_outlined),
+                  deliveryZonesAsync.when(
+                    data: (zones) => DropdownButtonFormField<DeliveryZoneModel>(
+                      initialValue: zones.any(
+                        (zone) => zone.id == _selectedArea?.id,
+                      )
+                          ? _selectedArea
+                          : null,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Bairro',
+                        prefixIcon: Icon(Icons.map_outlined),
+                      ),
+                      items: zones
+                          .map(
+                            (zone) => DropdownMenuItem(
+                              value: zone,
+                              child: Text(
+                                '${zone.name} · ${currency.format(zone.fee)}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (zone) {
+                        setState(() => _selectedArea = zone);
+                        ref.read(selectedDeliveryAreaProvider.notifier).state =
+                            zone;
+                      },
                     ),
-                    items: pedroCanarioDeliveryAreas
-                        .map(
-                          (area) => DropdownMenuItem(
-                            value: area,
-                            child: Text(area.name),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (area) {
-                      setState(() => _selectedArea = area);
-                      ref.read(selectedDeliveryAreaProvider.notifier).state =
-                          area;
-                    },
+                    loading: () => const LinearProgressIndicator(),
+                    error: (error, _) => Text(
+                      'Falha ao carregar bairros: $error',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -504,7 +518,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 hintText: 'Ex.: tirar cebola, ponto da massa...',
               ),
             ),
-            ),
+          ),
           if (canUseLoyalty)
             _CheckoutSection(
               icon: Icons.workspace_premium_outlined,
@@ -551,6 +565,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   label: 'Taxa de entrega',
                   value: currency.format(deliveryFee),
                 ),
+                if (visibleDeliveryType == DeliveryType.delivery &&
+                    _selectedArea != null) ...[
+                  const SizedBox(height: 8),
+                  _SummaryRow(
+                    label: 'Bairro',
+                    value: _selectedArea!.name,
+                  ),
+                ],
                 const Divider(),
                 _SummaryRow(
                   label: 'Total',
@@ -613,7 +635,8 @@ class _LoyaltyRewardOption {
   final int points;
   final double discount;
 
-  String get label => '$points pontos • R\$ ${discount.toStringAsFixed(2).replaceAll('.', ',')} de desconto';
+  String get label =>
+      '$points pontos • R\$ ${discount.toStringAsFixed(2).replaceAll('.', ',')} de desconto';
 }
 
 const _loyaltyRewards = [
@@ -860,8 +883,7 @@ class _ReceiveTypeTile extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color:
-                  selected ? accent : colors.onSurface.withOpacity(0.62),
+              color: selected ? accent : colors.onSurface.withOpacity(0.62),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -873,8 +895,7 @@ class _ReceiveTypeTile extends StatelessWidget {
                     ),
               ),
             ),
-            if (selected)
-              Icon(Icons.check_circle, color: accent),
+            if (selected) Icon(Icons.check_circle, color: accent),
           ],
         ),
       ),

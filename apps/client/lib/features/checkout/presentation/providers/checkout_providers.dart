@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rayssa_client/features/auth/presentation/providers/auth_providers.dart';
 import 'package:rayssa_client/features/cart/presentation/providers/cart_providers.dart';
-import 'package:rayssa_client/features/checkout/domain/models/delivery_area.dart';
 import 'package:rayssa_client/features/checkout/domain/services/delivery_fee_service.dart';
 import 'package:rayssa_client/features/orders/presentation/providers/order_providers.dart';
 import 'package:rayssa_core/rayssa_core.dart';
@@ -11,7 +10,25 @@ final deliveryTypeProvider =
     StateProvider<DeliveryType>((ref) => DeliveryType.delivery);
 
 final selectedDeliveryAreaProvider =
-    StateProvider<DeliveryArea?>((ref) => null);
+    StateProvider<DeliveryZoneModel?>((ref) => null);
+
+final activeDeliveryZonesProvider =
+    StreamProvider<List<DeliveryZoneModel>>((ref) {
+  return FirebaseFirestore.instance
+      .collection(FirestoreCollections.deliveryZones)
+      .where('isActive', isEqualTo: true)
+      .snapshots()
+      .map((snapshot) {
+    final zones = snapshot.docs
+        .map((doc) => DeliveryZoneModel.fromFirestore(doc.id, doc.data()))
+        .toList();
+    zones.sort((a, b) {
+      final order = a.order.compareTo(b.order);
+      return order != 0 ? order : a.name.compareTo(b.name);
+    });
+    return zones;
+  });
+});
 
 final storeDeliveryFeeProvider = StreamProvider<double>((ref) {
   return FirebaseFirestore.instance
@@ -34,9 +51,11 @@ final deliveryFeeProvider = Provider<double>((ref) {
   final configuredFee = ref.watch(storeDeliveryFeeProvider).valueOrNull ??
       DeliveryFeeService.defaultDeliveryFee;
 
-  if (type == DeliveryType.delivery && selectedArea?.deliveryFee != null) {
-    return selectedArea!.deliveryFee!;
+  if (type == DeliveryType.delivery && selectedArea != null) {
+    return selectedArea.fee;
   }
+
+  if (type == DeliveryType.delivery) return 0;
 
   return DeliveryFeeService.calculate(
     type: type,
@@ -114,6 +133,9 @@ class CheckoutController extends StateNotifier<AsyncValue<String?>> {
         paymentMethod: paymentMethod,
         paymentStatus: PaymentStatus.pending,
         address: deliveryType == DeliveryType.delivery ? address : null,
+        deliveryZoneId: deliveryType == DeliveryType.delivery
+            ? address?.deliveryZoneId
+            : null,
         notes: notes,
         changeFor: changeFor,
         loyaltyRewardApplied: rewardApplied,

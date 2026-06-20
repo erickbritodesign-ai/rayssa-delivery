@@ -41,6 +41,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /delivery_zones/{zoneId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
     match /pedidos/{orderId} {
       allow read: if isAdminOrStaff()
         || (isSignedIn() && resource.data.userId == request.auth.uid);

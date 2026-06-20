@@ -104,14 +104,18 @@ List<TableModel> mergeWithDefaultTables(
   final tablesByNumber = <int, TableModel>{};
 
   for (final table in firestoreTables) {
-    if (table.number < 1 || table.number > count) continue;
+    if (table.number < 1) continue;
+    if (table.number > count && table.status == TableStatus.free) continue;
     tablesByNumber[table.number] = table;
   }
 
-  return List.generate(count, (index) {
+  final result = List.generate(count, (index) {
     final number = index + 1;
     return tablesByNumber[number] ?? TableModel.fallback(number);
   });
+  result.addAll(tablesByNumber.values.where((table) => table.number > count));
+  result.sort((a, b) => a.number.compareTo(b.number));
+  return result;
 }
 
 int _numberFromId(String id) {

@@ -7,7 +7,7 @@ class TableService {
 
   final FirebaseFirestore _firestore;
 
-  Stream<List<TableModel>> watchTables() {
+  Stream<List<TableModel>> watchTables({int count = defaultTableCount}) {
     return _firestore
         .collection(FirestoreCollections.tables)
         .orderBy('number')
@@ -17,15 +17,15 @@ class TableService {
           .map((doc) => TableModel.fromFirestore(doc.id, doc.data()))
           .toList();
 
-      return mergeWithDefaultTables(tables);
+      return mergeWithDefaultTables(tables, count: count);
     });
   }
 
-  Future<void> ensureDefaultTables() async {
+  Future<void> ensureDefaultTables({int count = defaultTableCount}) async {
     final snapshot = await _firestore
         .collection(FirestoreCollections.tables)
         .where('number', isGreaterThanOrEqualTo: 1)
-        .where('number', isLessThanOrEqualTo: defaultTableCount)
+        .where('number', isLessThanOrEqualTo: count)
         .get();
     final existingNumbers = snapshot.docs
         .map((doc) => (doc.data()['number'] as num?)?.toInt())
@@ -34,7 +34,7 @@ class TableService {
     final batch = _firestore.batch();
     var hasWrites = false;
 
-    for (var number = 1; number <= defaultTableCount; number++) {
+    for (var number = 1; number <= count; number++) {
       if (existingNumbers.contains(number)) continue;
 
       hasWrites = true;

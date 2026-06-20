@@ -4,6 +4,7 @@ abstract final class FirestoreCollections {
   static const produtos = 'produtos';
   static const pedidos = 'pedidos';
   static const orderCounters = 'order_counters';
+  static const deliveryZones = 'delivery_zones';
   static const homeBanners = 'home_banners';
   static const tables = 'tables';
   static const tableSessions = 'table_sessions';

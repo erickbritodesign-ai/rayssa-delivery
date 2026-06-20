@@ -23,6 +23,7 @@ class OrderModel extends Equatable {
     this.changeFor,
     this.guestName,
     this.guestPhone,
+    this.deliveryZoneId,
     this.tableId,
     this.tableNumber,
     this.tableSessionId,
@@ -58,6 +59,7 @@ class OrderModel extends Equatable {
   final double? changeFor;
   final String? guestName;
   final String? guestPhone;
+  final String? deliveryZoneId;
   final String? tableId;
   final int? tableNumber;
   final String? tableSessionId;
@@ -107,6 +109,9 @@ class OrderModel extends Equatable {
       guestName: (data['guestName'] ?? data['customerNameManual']) as String?,
       guestPhone:
           (data['guestPhone'] ?? data['customerPhoneManual']) as String?,
+      deliveryZoneId:
+          data['deliveryZoneId'] as String? ??
+          addressRaw?['deliveryZoneId'] as String?,
       tableId: data['tableId'] as String?,
       tableNumber: (data['tableNumber'] as num?)?.toInt(),
       tableSessionId: data['tableSessionId'] as String?,
@@ -150,6 +155,7 @@ class OrderModel extends Equatable {
       'guestPhone': guestPhone,
       'customerNameManual': guestName,
       'customerPhoneManual': guestPhone,
+      'deliveryZoneId': deliveryZoneId ?? address?.deliveryZoneId,
       'tableId': tableId,
       'tableNumber': tableNumber,
       'tableSessionId': tableSessionId,
@@ -188,6 +194,7 @@ class OrderModel extends Equatable {
     changeFor,
     guestName,
     guestPhone,
+    deliveryZoneId,
     tableId,
     tableNumber,
     tableSessionId,

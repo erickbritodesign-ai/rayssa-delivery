@@ -7,7 +7,14 @@ import 'package:rayssa_admin/shared/data/admin_firestore_service.dart';
 import 'package:rayssa_core/rayssa_core.dart';
 
 final adminTablesProvider = StreamProvider<List<TableModel>>((ref) {
-  return ref.watch(adminFirestoreProvider).watchTables();
+  final settings = ref.watch(storeSettingsForTablesProvider).valueOrNull;
+  final count = ((settings?['tableCount'] as num?)?.toInt() ?? 10).clamp(1, 99);
+  return ref.watch(adminFirestoreProvider).watchTables(count: count);
+});
+
+final storeSettingsForTablesProvider =
+    StreamProvider<Map<String, dynamic>>((ref) {
+  return ref.watch(adminFirestoreProvider).watchStoreSettings();
 });
 
 final adminTableSessionProvider =
@@ -36,7 +43,12 @@ class _AdminTablesPageState extends ConsumerState<AdminTablesPage> {
     super.initState();
     Future<void>.microtask(() async {
       try {
-        await ref.read(adminFirestoreProvider).ensureDefaultTables();
+        final settings = await ref.read(storeSettingsForTablesProvider.future);
+        final count =
+            ((settings['tableCount'] as num?)?.toInt() ?? 10).clamp(1, 99);
+        await ref
+            .read(adminFirestoreProvider)
+            .ensureDefaultTables(count: count);
       } catch (_) {
         // As mesas fallback continuam disponíveis mesmo sem essa gravação.
       }
