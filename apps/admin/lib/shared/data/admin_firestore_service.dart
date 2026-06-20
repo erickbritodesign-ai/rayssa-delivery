@@ -113,6 +113,29 @@ class AdminFirestoreService {
         );
   }
 
+  Stream<List<OrderModel>> watchOrdersInRange({
+    required DateTime start,
+    required DateTime endExclusive,
+  }) {
+    return _firestore
+        .collection(FirestoreCollections.pedidos)
+        .where(
+          'createdAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(start),
+        )
+        .where(
+          'createdAt',
+          isLessThan: Timestamp.fromDate(endExclusive),
+        )
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => OrderModel.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
+  }
+
   Future<UserModel?> getUser(String userId) async {
     if (userId.trim().isEmpty) return null;
 

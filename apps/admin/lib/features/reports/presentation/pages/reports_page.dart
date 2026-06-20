@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:rayssa_admin/features/reports/utils/daily_closing_receipt_formatter.dart';
 import 'package:rayssa_admin/shared/data/admin_firestore_service.dart';
+import 'package:rayssa_admin/shared/widgets/print_text_dialog.dart';
 import 'package:rayssa_core/rayssa_core.dart';
+import 'package:share_plus/share_plus.dart';
 
-final reportsOrdersProvider = StreamProvider<List<OrderModel>>((ref) {
-  return ref.watch(adminFirestoreProvider).watchOrders();
+final reportsOrdersProvider = StreamProvider.family<List<OrderModel>,
+    ({DateTime start, DateTime endExclusive})>((ref, range) {
+  return ref.watch(adminFirestoreProvider).watchOrdersInRange(
+        start: range.start,
+        endExclusive: range.endExclusive,
+      );
 });
 
 enum _ReportPeriod { today, yesterday, sevenDays, thirtyDays, custom }
@@ -24,14 +32,18 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final ordersAsync = ref.watch(reportsOrdersProvider);
+    final range = _selectedRange();
+    final ordersAsync = ref.watch(
+      reportsOrdersProvider(
+        (start: range.start, endExclusive: range.endExclusive),
+      ),
+    );
     final currency = NumberFormat.simpleCurrency(locale: 'pt_BR');
 
     return Scaffold(
       appBar: AppBar(title: const Text('Relatórios')),
       body: ordersAsync.when(
         data: (orders) {
-          final range = _selectedRange();
           final report = _ReportData.fromOrders(orders, range);
 
           return LayoutBuilder(
@@ -107,6 +119,13 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                   const SizedBox(height: 10),
                   _PaymentSection(report: report, currency: currency),
                   const SizedBox(height: 22),
+                  _DailyClosingSection(
+                    report: report,
+                    rangeLabel: _rangeLabel(range),
+                    printPeriodLabel: _printRangeLabel(range),
+                    currency: currency,
+                  ),
+                  const SizedBox(height: 22),
                   const _SectionTitle('Produtos mais vendidos'),
                   const SizedBox(height: 10),
                   _BestProductsSection(report: report, currency: currency),
@@ -134,7 +153,8 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     final today = DateTime(now.year, now.month, now.day);
 
     return switch (_period) {
-      _ReportPeriod.today => _DateRange(today, today.add(const Duration(days: 1))),
+      _ReportPeriod.today =>
+        _DateRange(today, today.add(const Duration(days: 1))),
       _ReportPeriod.yesterday => _DateRange(
           today.subtract(const Duration(days: 1)),
           today,
@@ -198,6 +218,15 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     }
     return '${formatter.format(range.start)} a ${formatter.format(inclusiveEnd)}';
   }
+
+  String _printRangeLabel(_DateRange range) {
+    final end = range.endExclusive.subtract(const Duration(days: 1));
+    if (_isSameDay(range.start, end)) {
+      return DateFormat('dd/MM/yyyy').format(range.start);
+    }
+    return '${DateFormat('dd/MM').format(range.start)} a '
+        '${DateFormat('dd/MM').format(end)}';
+  }
 }
 
 class _DateRange {
@@ -224,6 +253,7 @@ class _ReportData {
     required this.byPayment,
     required this.products,
     required this.tableStats,
+    required this.deliveryFees,
   });
 
   final List<OrderModel> orders;
@@ -236,12 +266,15 @@ class _ReportData {
   final Map<String, _OrderGroup> byPayment;
   final List<_ProductStat> products;
   final _TableStats tableStats;
+  final double deliveryFees;
 
   factory _ReportData.fromOrders(List<OrderModel> allOrders, _DateRange range) {
-    final orders = allOrders.where((order) => range.contains(order.createdAt)).toList();
+    final orders =
+        allOrders.where((order) => range.contains(order.createdAt)).toList();
     final finished = orders.where(_isFinishedOrder).toList();
     final open = orders.where(_isOpenOrder).toList();
-    final cancelled = orders.where((order) => order.status == OrderStatus.cancelled).toList();
+    final cancelled =
+        orders.where((order) => order.status == OrderStatus.cancelled).toList();
     final revenue = finished.fold<double>(0, (sum, order) => sum + order.total);
     final averageTicket = finished.isEmpty ? 0.0 : revenue / finished.length;
 
@@ -271,8 +304,13 @@ class _ReportData {
       byPayment: byPayment,
       products: _buildProductRanking(finished),
       tableStats: _TableStats.fromOrders(finished),
+      deliveryFees: finished
+          .where((order) => order.deliveryType == DeliveryType.delivery)
+          .fold<double>(0, (total, order) => total + order.deliveryFee),
     );
   }
+
+  double paymentTotal(String label) => byPayment[label]?.total ?? 0;
 }
 
 class _OrderGroup {
@@ -444,7 +482,8 @@ class _PeriodSelector extends StatelessWidget {
             showCheckmark: false,
             selectedColor: const Color(0xFF7B2E1F),
             labelStyle: TextStyle(
-              color: selected == item.$1 ? Colors.white : const Color(0xFF2B1D18),
+              color:
+                  selected == item.$1 ? Colors.white : const Color(0xFF2B1D18),
               fontWeight: FontWeight.w900,
             ),
             side: BorderSide(
@@ -468,9 +507,9 @@ class _SectionTitle extends StatelessWidget {
     return Text(
       title,
       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-        color: const Color(0xFF2B1D18),
-        fontWeight: FontWeight.w900,
-      ),
+            color: const Color(0xFF2B1D18),
+            fontWeight: FontWeight.w900,
+          ),
     );
   }
 }
@@ -556,9 +595,9 @@ class _SummaryCard extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: const Color(0xFF4B3831),
-              fontWeight: FontWeight.w700,
-            ),
+                  color: const Color(0xFF4B3831),
+                  fontWeight: FontWeight.w700,
+                ),
           ),
           const SizedBox(height: 6),
           FittedBox(
@@ -568,10 +607,10 @@ class _SummaryCard extends StatelessWidget {
               item.value,
               maxLines: 1,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: const Color(0xFF2B1D18),
-                fontWeight: FontWeight.w900,
-                fontSize: 22,
-              ),
+                    color: const Color(0xFF2B1D18),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 22,
+                  ),
             ),
           ),
         ],
@@ -600,7 +639,10 @@ class _SalesTypeSection extends StatelessWidget {
           _ReportListCard(
             icon: entry.$2,
             title: entry.$3,
-            subtitle: '${report.byType[entry.$1]?.orders.length ?? 0} pedidos',
+            subtitle: entry.$1 == DeliveryType.delivery
+                ? '${report.byType[entry.$1]?.orders.length ?? 0} pedidos · '
+                    'Taxas ${currency.format(report.deliveryFees)}'
+                : '${report.byType[entry.$1]?.orders.length ?? 0} pedidos',
             trailing: currency.format(report.byType[entry.$1]?.total ?? 0),
             onTap: () => _showOrdersBottomSheet(
               context,
@@ -624,10 +666,15 @@ class _PaymentSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final entries = report.byPayment.entries.toList()
-      ..sort((a, b) => b.value.total.compareTo(a.value.total));
-
-    if (entries.isEmpty) return const _EmptyCard('Nenhum pagamento finalizado no período.');
+    final entries = [
+      'Dinheiro',
+      'Crédito',
+      'Débito',
+      'Pix',
+      'A definir',
+    ].map((label) {
+      return MapEntry(label, report.byPayment[label] ?? _OrderGroup.empty());
+    }).toList();
 
     return Column(
       children: [
@@ -651,6 +698,156 @@ class _PaymentSection extends StatelessWidget {
   }
 }
 
+class _DailyClosingSection extends StatelessWidget {
+  const _DailyClosingSection({
+    required this.report,
+    required this.rangeLabel,
+    required this.printPeriodLabel,
+    required this.currency,
+  });
+
+  final _ReportData report;
+  final String rangeLabel;
+  final String printPeriodLabel;
+  final NumberFormat currency;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = _closingData(report, printPeriodLabel);
+    final shareText = _closingShareText(report, rangeLabel, currency);
+    final receipt = DailyClosingReceiptFormatter.format(data);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SectionTitle('Fechamento do dia'),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: _cardDecoration(),
+          child: Column(
+            children: [
+              _ClosingRow(
+                label: 'Total vendido',
+                value: currency.format(report.revenue),
+                emphasized: true,
+              ),
+              _ClosingRow(
+                label: 'Dinheiro',
+                value: currency.format(report.paymentTotal('Dinheiro')),
+              ),
+              _ClosingRow(
+                label: 'Pix',
+                value: currency.format(report.paymentTotal('Pix')),
+              ),
+              _ClosingRow(
+                label: 'Débito',
+                value: currency.format(report.paymentTotal('Débito')),
+              ),
+              _ClosingRow(
+                label: 'Crédito',
+                value: currency.format(report.paymentTotal('Crédito')),
+              ),
+              const Divider(),
+              _ClosingRow(
+                label: 'Delivery',
+                value: currency.format(
+                  report.byType[DeliveryType.delivery]?.total ?? 0,
+                ),
+              ),
+              _ClosingRow(
+                label: 'Retirada',
+                value: currency.format(
+                  report.byType[DeliveryType.pickup]?.total ?? 0,
+                ),
+              ),
+              _ClosingRow(
+                label: 'Mesa',
+                value: currency.format(
+                  report.byType[DeliveryType.dineIn]?.total ?? 0,
+                ),
+              ),
+              _ClosingRow(
+                label: 'Taxas de entrega',
+                value: currency.format(report.deliveryFees),
+              ),
+              _ClosingRow(
+                label: 'Cancelados',
+                value: '${report.cancelledOrders.length}',
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Conferir valores com maquininha/caixa.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => _copyClosing(context, shareText),
+              icon: const Icon(Icons.copy_outlined),
+              label: const Text('Copiar fechamento'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _shareClosing(context, shareText),
+              icon: const Icon(Icons.share_outlined),
+              label: const Text('Compartilhar fechamento'),
+            ),
+            FilledButton.icon(
+              onPressed: () => PrintTextDialog.show(
+                context,
+                title: 'Imprimir fechamento',
+                text: receipt,
+                subject: 'Fechamento - $rangeLabel',
+                copyLabel: 'Copiar fechamento',
+                copyMessage: 'Fechamento copiado.',
+              ),
+              icon: const Icon(Icons.print_outlined),
+              label: const Text('Imprimir fechamento'),
+            ),
+          ].map((button) => SizedBox(height: 48, child: button)).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _ClosingRow extends StatelessWidget {
+  const _ClosingRow({
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: emphasized ? 17 : 14,
+      fontWeight: emphasized ? FontWeight.w900 : FontWeight.w700,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: style)),
+          const SizedBox(width: 12),
+          Text(value, style: style),
+        ],
+      ),
+    );
+  }
+}
+
 class _BestProductsSection extends StatelessWidget {
   const _BestProductsSection({required this.report, required this.currency});
 
@@ -660,7 +857,9 @@ class _BestProductsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final products = report.products.take(10).toList();
-    if (products.isEmpty) return const _EmptyCard('Nenhum produto vendido no período.');
+    if (products.isEmpty) {
+      return const _EmptyCard('Nenhum produto vendido no período.');
+    }
 
     return Column(
       children: [
@@ -711,16 +910,16 @@ class _ProductRankingCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+                        fontWeight: FontWeight.w900,
+                      ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   '${product.quantity} unidades',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF6F5A52),
-                    fontWeight: FontWeight.w700,
-                  ),
+                        color: const Color(0xFF6F5A52),
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
               ],
             ),
@@ -729,9 +928,9 @@ class _ProductRankingCard extends StatelessWidget {
           Text(
             currency.format(product.total),
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: const Color(0xFF7B2E1F),
-              fontWeight: FontWeight.w900,
-            ),
+                  color: const Color(0xFF7B2E1F),
+                  fontWeight: FontWeight.w900,
+                ),
           ),
         ],
       ),
@@ -776,12 +975,14 @@ class _OrdersList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (orders.isEmpty) return const _EmptyCard('Nenhum pedido encontrado no período.');
+    if (orders.isEmpty) {
+      return const _EmptyCard('Nenhum pedido encontrado no período.');
+    }
     final sorted = [...orders]..sort((a, b) {
-      final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return bDate.compareTo(aDate);
-    });
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
 
     return Column(
       children: [
@@ -835,8 +1036,8 @@ class _ReportListCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+                        fontWeight: FontWeight.w900,
+                      ),
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -844,9 +1045,9 @@ class _ReportListCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF6F5A52),
-                    fontWeight: FontWeight.w700,
-                  ),
+                        color: const Color(0xFF6F5A52),
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
               ],
             ),
@@ -859,9 +1060,9 @@ class _ReportListCard extends StatelessWidget {
               textAlign: TextAlign.end,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: const Color(0xFF2B1D18),
-                fontWeight: FontWeight.w900,
-              ),
+                    color: const Color(0xFF2B1D18),
+                    fontWeight: FontWeight.w900,
+                  ),
             ),
           ),
         ],
@@ -890,48 +1091,77 @@ class _OrderTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final date = order.createdAt == null
         ? 'Sem data'
-        : DateFormat('dd/MM HH:mm').format(order.createdAt!);
+        : DateFormat('dd/MM HH:mm').format(order.createdAt!.toLocal());
+    final orderNumber = order.dailyOrderNumber == null
+        ? _shortId(order.id)
+        : order.dailyOrderNumber!.toString().padLeft(6, '0');
+    final customer = order.deliveryType == DeliveryType.dineIn
+        ? 'Mesa ${order.tableNumber ?? 'N/I'}'
+        : (order.guestName?.trim().isNotEmpty == true
+            ? order.guestName!.trim()
+            : order.address?.neighborhood ?? 'Cliente');
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => _showOrderDetails(context, order, currency),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: _cardDecoration(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  'Pedido #${_shortId(order.id)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Pedido #$orderNumber',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Text(
+                    currency.format(order.total),
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: const Color(0xFF7B2E1F),
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
+              const SizedBox(height: 4),
               Text(
-                currency.format(order.total),
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: const Color(0xFF7B2E1F),
-                  fontWeight: FontWeight.w900,
+                customer,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _MiniPill(label: date),
+                  _MiniPill(label: order.deliveryType.label),
+                  _MiniPill(label: _paymentLabel(order.paymentMethod)),
+                  _MiniPill(label: order.status.label),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'Ver detalhes',
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _MiniPill(label: date),
-              _MiniPill(label: order.deliveryType.label),
-              _MiniPill(label: _paymentLabel(order.paymentMethod)),
-              _MiniPill(label: order.status.label),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -954,9 +1184,9 @@ class _MiniPill extends StatelessWidget {
         child: Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: const Color(0xFF7B2E1F),
-            fontWeight: FontWeight.w900,
-          ),
+                color: const Color(0xFF7B2E1F),
+                fontWeight: FontWeight.w900,
+              ),
         ),
       ),
     );
@@ -978,9 +1208,9 @@ class _EmptyCard extends StatelessWidget {
         message,
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: const Color(0xFF6F5A52),
-          fontWeight: FontWeight.w700,
-        ),
+              color: const Color(0xFF6F5A52),
+              fontWeight: FontWeight.w700,
+            ),
       ),
     );
   }
@@ -1022,8 +1252,8 @@ void _showOrdersBottomSheet(
               Text(
                 title,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w900,
-                ),
+                      fontWeight: FontWeight.w900,
+                    ),
               ),
               const SizedBox(height: 6),
               Text('${orders.length} pedidos'),
@@ -1036,7 +1266,10 @@ void _showOrdersBottomSheet(
                         itemCount: orders.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
-                          return _OrderTile(order: orders[index], currency: currency);
+                          return _OrderTile(
+                            order: orders[index],
+                            currency: currency,
+                          );
                         },
                       ),
               ),
@@ -1048,12 +1281,149 @@ void _showOrdersBottomSheet(
   );
 }
 
+Future<void> _copyClosing(BuildContext context, String text) async {
+  await Clipboard.setData(ClipboardData(text: text));
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Fechamento copiado.')),
+  );
+}
+
+Future<void> _shareClosing(BuildContext context, String text) async {
+  final box = context.findRenderObject() as RenderBox?;
+  await Share.share(
+    text,
+    subject: 'Fechamento Rayssa Delivery',
+    sharePositionOrigin:
+        box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+  );
+}
+
+DailyClosingReceiptData _closingData(
+  _ReportData report,
+  String periodLabel,
+) {
+  return DailyClosingReceiptData(
+    periodLabel: periodLabel,
+    total: report.revenue,
+    orders: report.finishedOrders.length,
+    averageTicket: report.averageTicket,
+    delivery: report.byType[DeliveryType.delivery]?.total ?? 0,
+    pickup: report.byType[DeliveryType.pickup]?.total ?? 0,
+    dineIn: report.byType[DeliveryType.dineIn]?.total ?? 0,
+    cash: report.paymentTotal('Dinheiro'),
+    pix: report.paymentTotal('Pix'),
+    debit: report.paymentTotal('Débito'),
+    credit: report.paymentTotal('Crédito'),
+    other: report.paymentTotal('A definir'),
+    cancelled: report.cancelledOrders.length,
+    deliveryFees: report.deliveryFees,
+  );
+}
+
+String _closingShareText(
+  _ReportData report,
+  String rangeLabel,
+  NumberFormat currency,
+) {
+  return [
+    'FECHAMENTO - $rangeLabel',
+    'Total vendido: ${currency.format(report.revenue)}',
+    'Pedidos: ${report.finishedOrders.length}',
+    'Delivery: ${currency.format(report.byType[DeliveryType.delivery]?.total ?? 0)}',
+    'Retirada: ${currency.format(report.byType[DeliveryType.pickup]?.total ?? 0)}',
+    'Mesas: ${currency.format(report.byType[DeliveryType.dineIn]?.total ?? 0)}',
+    '',
+    'Pagamentos:',
+    'Pix: ${currency.format(report.paymentTotal('Pix'))}',
+    'Débito: ${currency.format(report.paymentTotal('Débito'))}',
+    'Crédito: ${currency.format(report.paymentTotal('Crédito'))}',
+    'Dinheiro: ${currency.format(report.paymentTotal('Dinheiro'))}',
+    'A definir: ${currency.format(report.paymentTotal('A definir'))}',
+    '',
+    'Cancelados: ${report.cancelledOrders.length}',
+    'Taxas entrega: ${currency.format(report.deliveryFees)}',
+    '',
+    'Conferir valores com maquininha/caixa.',
+  ].join('\n');
+}
+
+void _showOrderDetails(
+  BuildContext context,
+  OrderModel order,
+  NumberFormat currency,
+) {
+  final number = order.dailyOrderNumber == null
+      ? _shortId(order.id)
+      : order.dailyOrderNumber!.toString().padLeft(6, '0');
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) => SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Pedido #$number',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            _ClosingRow(label: 'Tipo', value: order.deliveryType.label),
+            _ClosingRow(
+              label: 'Pagamento',
+              value: _paymentLabel(order.paymentMethod),
+            ),
+            _ClosingRow(label: 'Status', value: order.status.label),
+            _ClosingRow(
+              label: 'Subtotal',
+              value: currency.format(order.subtotal),
+            ),
+            if (order.deliveryFee > 0)
+              _ClosingRow(
+                label: 'Taxa entrega',
+                value: currency.format(order.deliveryFee),
+              ),
+            _ClosingRow(label: 'Total', value: currency.format(order.total)),
+            if (order.tableNumber != null)
+              _ClosingRow(label: 'Mesa', value: '${order.tableNumber}'),
+            if ((order.address?.neighborhood ?? '').isNotEmpty)
+              _ClosingRow(
+                label: 'Bairro',
+                value: order.address!.neighborhood,
+              ),
+            const SizedBox(height: 12),
+            const Text(
+              'Itens',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 6),
+            for (final item in order.items)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  '${item.quantity}x ${item.name} · '
+                  '${currency.format(item.subtotal)}',
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 List<_ProductStat> _buildProductRanking(List<OrderModel> orders) {
   final byName = <String, _ProductStat>{};
 
   for (final order in orders) {
     for (final item in order.items) {
-      final name = item.name.trim().isEmpty ? 'Produto sem nome' : item.name.trim();
+      final name =
+          item.name.trim().isEmpty ? 'Produto sem nome' : item.name.trim();
       final current = byName[name];
       byName[name] = _ProductStat(
         name: name,
@@ -1072,7 +1442,8 @@ List<_ProductStat> _buildProductRanking(List<OrderModel> orders) {
   return values;
 }
 
-bool _isFinishedOrder(OrderModel order) => order.status == OrderStatus.delivered;
+bool _isFinishedOrder(OrderModel order) =>
+    order.status == OrderStatus.delivered;
 
 bool _isOpenOrder(OrderModel order) {
   return order.status == OrderStatus.received ||
@@ -1081,7 +1452,8 @@ bool _isOpenOrder(OrderModel order) {
       order.status == OrderStatus.outForDelivery;
 }
 
-DateTime _startOfDay(DateTime date) => DateTime(date.year, date.month, date.day);
+DateTime _startOfDay(DateTime date) =>
+    DateTime(date.year, date.month, date.day);
 
 bool _isSameDay(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
@@ -1092,10 +1464,10 @@ String _paymentLabel(PaymentMethod method) {
     PaymentMethod.cash => 'Dinheiro',
     PaymentMethod.creditCard => 'Crédito',
     PaymentMethod.debitCard => 'Débito',
-    PaymentMethod.pixOnDelivery => 'Pix na entrega',
-    PaymentMethod.pixApp => 'Pix pelo app',
+    PaymentMethod.pixOnDelivery => 'Pix',
+    PaymentMethod.pixApp => 'Pix',
     PaymentMethod.pix => 'Pix',
-    PaymentMethod.notSelected => 'Não informado',
+    PaymentMethod.notSelected => 'A definir',
   };
 }
 
