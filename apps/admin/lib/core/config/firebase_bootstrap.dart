@@ -3,10 +3,12 @@ import '../../firebase_options.dart';
 
 class FirebaseBootstrap {
   static Future<void> initialize() async {
-    if (Firebase.apps.isNotEmpty) return;
-
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } on FirebaseException catch (error) {
+      if (error.code != 'duplicate-app') rethrow;
+    }
   }
 }

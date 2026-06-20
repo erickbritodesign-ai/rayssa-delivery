@@ -2,6 +2,7 @@
 .dart_tool/
 .dart_appdata/
 .localappdata/
+.pub-cache/
 .tool-home/
 .tmp/
 .packages

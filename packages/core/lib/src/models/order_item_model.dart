@@ -7,6 +7,7 @@ class OrderItemModel extends Equatable {
     required this.unitPrice,
     required this.quantity,
     this.imageUrl,
+    this.notes,
   });
 
   final String productId;
@@ -14,6 +15,7 @@ class OrderItemModel extends Equatable {
   final double unitPrice;
   final int quantity;
   final String? imageUrl;
+  final String? notes;
 
   double get subtotal => unitPrice * quantity;
 
@@ -24,6 +26,8 @@ class OrderItemModel extends Equatable {
       unitPrice: (map['unitPrice'] as num?)?.toDouble() ?? 0,
       quantity: map['quantity'] as int? ?? 1,
       imageUrl: map['imageUrl'] as String?,
+      notes:
+          (map['notes'] ?? map['observation'] ?? map['observacao']) as String?,
     );
   }
 
@@ -34,9 +38,17 @@ class OrderItemModel extends Equatable {
       'unitPrice': unitPrice,
       'quantity': quantity,
       'imageUrl': imageUrl,
+      'notes': notes,
     };
   }
 
   @override
-  List<Object?> get props => [productId, name, unitPrice, quantity, imageUrl];
+  List<Object?> get props => [
+    productId,
+    name,
+    unitPrice,
+    quantity,
+    imageUrl,
+    notes,
+  ];
 }

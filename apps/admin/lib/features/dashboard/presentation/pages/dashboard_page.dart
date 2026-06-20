@@ -5,7 +5,7 @@ import 'package:rayssa_admin/shared/data/admin_firestore_service.dart';
 import 'package:rayssa_core/rayssa_core.dart';
 
 final dashboardOrdersProvider = StreamProvider<List<OrderModel>>((ref) {
-  return ref.watch(adminFirestoreProvider).watchOrders();
+  return ref.watch(adminFirestoreProvider).watchRecentOrders(limit: 100);
 });
 
 class DashboardPage extends ConsumerWidget {

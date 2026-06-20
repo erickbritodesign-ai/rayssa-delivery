@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:rayssa_admin/features/orders/widgets/print_order_dialog.dart';
 import 'package:rayssa_admin/shared/data/admin_firestore_service.dart';
 import 'package:rayssa_core/rayssa_core.dart';
 
 final adminOrdersProvider = StreamProvider<List<OrderModel>>((ref) {
-  return ref.watch(adminFirestoreProvider).watchOrders();
+  return ref.watch(adminFirestoreProvider).watchRecentOrders();
 });
 
 class AdminOrdersPage extends ConsumerStatefulWidget {
@@ -98,6 +99,7 @@ class _AdminOrdersPageState extends ConsumerState<AdminOrdersPage> {
                                   return _OrderAdminCard(
                                     order: order,
                                     currency: currency,
+                                    onPrint: () => _showPrintOrder(order),
                                     onStatusChange: (status) {
                                       _updateOrderStatus(order, status);
                                     },
@@ -193,20 +195,56 @@ class _AdminOrdersPageState extends ConsumerState<AdminOrdersPage> {
   ) async {
     if (order.status == status) return;
 
-    final awardedPoints = await ref
-        .read(adminFirestoreProvider)
-        .updateOrderStatus(order.id, status);
+    final shouldOfferPrint = (order.status == OrderStatus.received ||
+            order.status == OrderStatus.confirmed) &&
+        (status == OrderStatus.confirmed || status == OrderStatus.preparing);
+
+    try {
+      final awardedPoints = await ref
+          .read(adminFirestoreProvider)
+          .updateOrderStatus(order.id, status);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            awardedPoints > 0
+                ? 'Pedido atualizado para ${_statusLabel(status)}. $awardedPoints pontos concedidos.'
+                : 'Pedido atualizado para ${_statusLabel(status)}.',
+          ),
+        ),
+      );
+
+      if (shouldOfferPrint) {
+        try {
+          await _showPrintOrder(order);
+        } catch (_) {
+          // A impressão é assistida e não deve interromper o fluxo do pedido.
+        }
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível atualizar o pedido: $error')),
+      );
+    }
+  }
+
+  Future<void> _showPrintOrder(OrderModel order) async {
+    UserModel? customer;
+    try {
+      customer = await ref.read(adminFirestoreProvider).getUser(order.userId);
+    } catch (_) {
+      customer = null;
+    }
 
     if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          awardedPoints > 0
-              ? 'Pedido atualizado para ${_statusLabel(status)}. $awardedPoints pontos concedidos.'
-              : 'Pedido atualizado para ${_statusLabel(status)}.',
-        ),
-      ),
+    await PrintOrderDialog.show(
+      context,
+      order: order,
+      customerName: customer?.name,
+      customerPhone: customer?.phone,
     );
   }
 }
@@ -426,11 +464,13 @@ class _OrderAdminCard extends StatelessWidget {
   const _OrderAdminCard({
     required this.order,
     required this.currency,
+    required this.onPrint,
     required this.onStatusChange,
   });
 
   final OrderModel order;
   final NumberFormat currency;
+  final VoidCallback onPrint;
   final ValueChanged<OrderStatus> onStatusChange;
 
   @override
@@ -484,6 +524,7 @@ class _OrderAdminCard extends StatelessWidget {
                     const SizedBox(height: 16),
                     _OrderActions(
                       order: order,
+                      onPrint: onPrint,
                       onStatusChange: onStatusChange,
                     ),
                   ],
@@ -635,8 +676,7 @@ class _OrderMetaRow extends StatelessWidget {
           label: currency.format(order.total),
           emphasized: true,
         ),
-        if (order.loyaltyRewardApplied &&
-            order.loyaltyDiscountAmount > 0) ...[
+        if (order.loyaltyRewardApplied && order.loyaltyDiscountAmount > 0) ...[
           _MetaPill(
             icon: Icons.local_offer_outlined,
             label:
@@ -939,10 +979,12 @@ class _InfoBlock extends StatelessWidget {
 class _OrderActions extends StatelessWidget {
   const _OrderActions({
     required this.order,
+    required this.onPrint,
     required this.onStatusChange,
   });
 
   final OrderModel order;
+  final VoidCallback onPrint;
   final ValueChanged<OrderStatus> onStatusChange;
 
   @override
@@ -968,6 +1010,11 @@ class _OrderActions extends StatelessWidget {
               runSpacing: 8,
               alignment: compact ? WrapAlignment.start : WrapAlignment.end,
               children: [
+                OutlinedButton.icon(
+                  onPressed: onPrint,
+                  icon: const Icon(Icons.print_outlined),
+                  label: const Text('Imprimir'),
+                ),
                 FilledButton.icon(
                   onPressed: canPrepare
                       ? () => onStatusChange(OrderStatus.preparing)

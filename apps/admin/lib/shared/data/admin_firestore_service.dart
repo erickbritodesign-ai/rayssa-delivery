@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rayssa_core/rayssa_core.dart';
 
@@ -13,9 +14,11 @@ class AdminFirestoreService {
         .collection(FirestoreCollections.categorias)
         .orderBy('sortOrder')
         .snapshots()
-        .map((s) => s.docs
-            .map((d) => CategoryModel.fromFirestore(d.id, d.data()))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => CategoryModel.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
   }
 
   Future<void> upsertCategory(CategoryModel category) {
@@ -37,9 +40,11 @@ class AdminFirestoreService {
         .collection(FirestoreCollections.produtos)
         .orderBy('name')
         .snapshots()
-        .map((s) => s.docs
-            .map((d) => ProductModel.fromFirestore(d.id, d.data()))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => ProductModel.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
   }
 
   Future<void> upsertProduct(ProductModel product) {
@@ -88,9 +93,37 @@ class AdminFirestoreService {
         .collection(FirestoreCollections.pedidos)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((s) => s.docs
-            .map((d) => OrderModel.fromFirestore(d.id, d.data()))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => OrderModel.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
+  }
+
+  Stream<List<OrderModel>> watchRecentOrders({int limit = 150}) {
+    return _firestore
+        .collection(FirestoreCollections.pedidos)
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => OrderModel.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
+  }
+
+  Future<UserModel?> getUser(String userId) async {
+    if (userId.trim().isEmpty) return null;
+
+    final snapshot = await _firestore
+        .collection(FirestoreCollections.usuarios)
+        .doc(userId)
+        .get();
+    final data = snapshot.data();
+    if (!snapshot.exists || data == null) return null;
+
+    return UserModel.fromFirestore(snapshot.id, data);
   }
 
   Future<int> updateOrderStatus(String orderId, OrderStatus status) async {
@@ -226,6 +259,242 @@ class AdminFirestoreService {
     });
   }
 
+  Future<TableSessionModel> openTable({
+    required TableModel table,
+    String? guestName,
+    String? guestPhone,
+  }) async {
+    final existing = await _fetchOpenTableSession(table.id);
+    if (existing != null) return existing;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw StateError('Sessão administrativa expirada.');
+
+    final sessionRef =
+        _firestore.collection(FirestoreCollections.tableSessions).doc();
+    final orderRef = _firestore.collection(FirestoreCollections.pedidos).doc();
+    final tableRef =
+        _firestore.collection(FirestoreCollections.tables).doc(table.id);
+    final cleanName = _nullableText(guestName);
+    final cleanPhone = _nullableText(guestPhone);
+    final batch = _firestore.batch();
+
+    batch.set(sessionRef, {
+      'tableId': table.id,
+      'tableNumber': table.number,
+      'status': TableSessionStatus.open.value,
+      'items': <Map<String, dynamic>>[],
+      'subtotal': 0,
+      'serviceFee': 0,
+      'discount': 0,
+      'total': 0,
+      'paymentStatus': PaymentStatus.pending.value,
+      'guestName': cleanName,
+      'guestPhone': cleanPhone,
+      'customerNameManual': cleanName,
+      'customerPhoneManual': cleanPhone,
+      'openedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'openedByName': user.displayName ?? 'Admin',
+      'waiterName': user.displayName ?? 'Admin',
+      'openedByUserId': user.uid,
+      'orderIds': [orderRef.id],
+      'linkedOrderIds': [orderRef.id],
+    });
+
+    batch.set(
+      tableRef,
+      {
+        'number': table.number,
+        'name': table.name,
+        'status': TableStatus.open.value,
+        'currentSessionId': sessionRef.id,
+        'currentTotal': 0,
+        'openedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+
+    batch.set(orderRef, {
+      ...OrderModel(
+        id: orderRef.id,
+        userId: user.uid,
+        items: const [],
+        subtotal: 0,
+        deliveryFee: 0,
+        total: 0,
+        status: OrderStatus.preparing,
+        deliveryType: DeliveryType.dineIn,
+        paymentMethod: PaymentMethod.notSelected,
+        paymentStatus: PaymentStatus.pending,
+        guestName: cleanName,
+        guestPhone: cleanPhone,
+        tableId: table.id,
+        tableNumber: table.number,
+        tableSessionId: sessionRef.id,
+        dineInStatus: TableSessionStatus.open.value,
+      ).toFirestore(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+    final now = DateTime.now();
+    return TableSessionModel(
+      id: sessionRef.id,
+      tableId: table.id,
+      tableNumber: table.number,
+      status: TableSessionStatus.open,
+      items: const [],
+      subtotal: 0,
+      serviceFee: 0,
+      discount: 0,
+      total: 0,
+      guestName: cleanName,
+      guestPhone: cleanPhone,
+      openedAt: now,
+      updatedAt: now,
+      openedByName: user.displayName ?? 'Admin',
+      waiterName: user.displayName ?? 'Admin',
+      openedByUserId: user.uid,
+      orderIds: [orderRef.id],
+    );
+  }
+
+  Future<void> saveTableOrder({
+    required TableSessionModel session,
+    required List<OrderItemModel> items,
+    String? guestName,
+    String? guestPhone,
+    String? notes,
+  }) async {
+    final total = items.fold<double>(0, (value, item) {
+      return value + item.subtotal;
+    });
+    final cleanName = _nullableText(guestName);
+    final cleanPhone = _nullableText(guestPhone);
+    final cleanNotes = _nullableText(notes);
+    final sessionRef = _firestore
+        .collection(FirestoreCollections.tableSessions)
+        .doc(session.id);
+    final tableRef =
+        _firestore.collection(FirestoreCollections.tables).doc(session.tableId);
+    final batch = _firestore.batch();
+    final orderId = session.orderIds.isEmpty ? null : session.orderIds.first;
+
+    batch.update(sessionRef, {
+      'items': items.map((item) => item.toMap()).toList(),
+      'subtotal': total,
+      'total': total,
+      'serviceFee': 0,
+      'discount': 0,
+      'guestName': cleanName,
+      'guestPhone': cleanPhone,
+      'customerNameManual': cleanName,
+      'customerPhoneManual': cleanPhone,
+      'notes': cleanNotes,
+      'status': items.isEmpty
+          ? TableSessionStatus.open.value
+          : TableSessionStatus.preparing.value,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    batch.set(
+      tableRef,
+      {
+        'number': session.tableNumber,
+        'name': 'Mesa ${session.tableNumber}',
+        'status': items.isEmpty
+            ? TableStatus.open.value
+            : TableStatus.preparing.value,
+        'currentSessionId': session.id,
+        'currentTotal': total,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+
+    if (orderId != null) {
+      batch.update(
+        _firestore.collection(FirestoreCollections.pedidos).doc(orderId),
+        {
+          'items': items.map((item) => item.toMap()).toList(),
+          'subtotal': total,
+          'subtotalBeforeDiscount': total,
+          'subtotalAfterDiscount': total,
+          'deliveryFee': 0,
+          'total': total,
+          'notes': cleanNotes,
+          'guestName': cleanName,
+          'guestPhone': cleanPhone,
+          'customerNameManual': cleanName,
+          'customerPhoneManual': cleanPhone,
+          'deliveryType': DeliveryType.dineIn.value,
+          'orderType': DeliveryType.dineIn.value,
+          'fulfillmentType': DeliveryType.dineIn.value,
+          'status': OrderStatus.preparing.value,
+          'dineInStatus': items.isEmpty
+              ? TableSessionStatus.open.value
+              : TableSessionStatus.preparing.value,
+          'loyaltyRewardApplied': false,
+          'loyaltyPointsRedeemed': 0,
+          'loyaltyDiscountAmount': 0,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+      );
+    }
+
+    await batch.commit();
+  }
+
+  Future<void> closeTable({
+    required TableSessionModel session,
+    required PaymentMethod paymentMethod,
+    double? changeFor,
+  }) async {
+    final batch = _firestore.batch();
+    batch.update(
+      _firestore.collection(FirestoreCollections.tableSessions).doc(session.id),
+      {
+        'status': TableSessionStatus.closed.value,
+        'paymentMethod': paymentMethod.value,
+        'paymentStatus': PaymentStatus.paid.value,
+        'changeFor': changeFor,
+        'closedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+    );
+    batch.set(
+      _firestore.collection(FirestoreCollections.tables).doc(session.tableId),
+      {
+        'number': session.tableNumber,
+        'name': 'Mesa ${session.tableNumber}',
+        'status': TableStatus.free.value,
+        'currentSessionId': null,
+        'currentTotal': 0,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+    for (final orderId in session.orderIds) {
+      batch.update(
+        _firestore.collection(FirestoreCollections.pedidos).doc(orderId),
+        {
+          'status': OrderStatus.delivered.value,
+          'paymentMethod': paymentMethod.value,
+          'paymentStatus': PaymentStatus.paid.value,
+          'changeFor': changeFor,
+          'dineInStatus': TableSessionStatus.closed.value,
+          'loyaltyRewardApplied': false,
+          'loyaltyPointsRedeemed': 0,
+          'loyaltyDiscountAmount': 0,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+      );
+    }
+    await batch.commit();
+  }
+
   Future<void> updateTableSessionStatus(
     TableSessionModel session,
     TableSessionStatus status,
@@ -280,6 +549,28 @@ class AdminFirestoreService {
     await batch.commit();
   }
 
+  Future<TableSessionModel?> _fetchOpenTableSession(String tableId) async {
+    final snapshot = await _firestore
+        .collection(FirestoreCollections.tableSessions)
+        .where('tableId', isEqualTo: tableId)
+        .get();
+    final sessions = snapshot.docs
+        .map((doc) => TableSessionModel.fromFirestore(doc.id, doc.data()))
+        .where(
+          (session) =>
+              session.status == TableSessionStatus.open ||
+              session.status == TableSessionStatus.preparing ||
+              session.status == TableSessionStatus.waitingPayment,
+        )
+        .toList();
+    sessions.sort((a, b) {
+      final aDate = a.openedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b.openedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
+    return sessions.isEmpty ? null : sessions.first;
+  }
+
   Stream<Map<String, dynamic>> watchStoreSettings() {
     return _firestore
         .collection('configuracoes')
@@ -301,11 +592,19 @@ class AdminFirestoreService {
   }
 
   Future<void> saveStoreSettings(Map<String, dynamic> data) {
-    return _firestore.collection('configuracoes').doc('store').set({
-      ...data,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    return _firestore.collection('configuracoes').doc('store').set(
+      {
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
+}
+
+String? _nullableText(String? value) {
+  final clean = value?.trim();
+  return clean == null || clean.isEmpty ? null : clean;
 }
 
 final adminFirestoreProvider = Provider<AdminFirestoreService>((ref) {
@@ -319,7 +618,7 @@ int calculateLoyaltyPointsFromProducts(OrderModel order) {
           ? order.subtotal
           : order.items.fold<double>(
               0,
-              (sum, item) => sum + item.subtotal,
+              (totalValue, item) => totalValue + item.subtotal,
             ));
   final points = productValue.floor();
   return points > 0 ? points : 0;

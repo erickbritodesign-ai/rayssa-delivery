@@ -18,6 +18,9 @@ class TableSessionModel extends Equatable {
     this.paymentMethod,
     this.paymentStatus = PaymentStatus.pending,
     this.changeFor,
+    this.guestName,
+    this.guestPhone,
+    this.notes,
     this.openedAt,
     this.closedAt,
     this.updatedAt,
@@ -39,6 +42,9 @@ class TableSessionModel extends Equatable {
   final PaymentMethod? paymentMethod;
   final PaymentStatus paymentStatus;
   final double? changeFor;
+  final String? guestName;
+  final String? guestPhone;
+  final String? notes;
   final DateTime? openedAt;
   final DateTime? closedAt;
   final DateTime? updatedAt;
@@ -72,6 +78,10 @@ class TableSessionModel extends Equatable {
           : PaymentMethod.fromString(data['paymentMethod'] as String?),
       paymentStatus: PaymentStatus.fromString(data['paymentStatus'] as String?),
       changeFor: (data['changeFor'] as num?)?.toDouble(),
+      guestName: (data['guestName'] ?? data['customerNameManual']) as String?,
+      guestPhone:
+          (data['guestPhone'] ?? data['customerPhoneManual']) as String?,
+      notes: data['notes'] as String?,
       openedAt: _timestampToDate(data['openedAt']),
       closedAt: _timestampToDate(data['closedAt']),
       updatedAt: _timestampToDate(data['updatedAt']),
@@ -97,6 +107,11 @@ class TableSessionModel extends Equatable {
       'paymentMethod': paymentMethod?.value,
       'paymentStatus': paymentStatus.value,
       'changeFor': changeFor,
+      'guestName': guestName,
+      'guestPhone': guestPhone,
+      'customerNameManual': guestName,
+      'customerPhoneManual': guestPhone,
+      'notes': notes,
       'openedAt': openedAt,
       'closedAt': closedAt,
       'updatedAt': updatedAt,
@@ -122,6 +137,9 @@ class TableSessionModel extends Equatable {
     paymentMethod,
     paymentStatus,
     changeFor,
+    guestName,
+    guestPhone,
+    notes,
     openedAt,
     closedAt,
     updatedAt,

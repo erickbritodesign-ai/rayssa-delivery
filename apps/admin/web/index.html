@@ -1,6 +1,120 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <script>
+    (function () {
+      function hasResetParam() {
+        return window.location.search.indexOf('resetApp=1') !== -1;
+      }
+
+      function appendResetBox(box) {
+        try {
+          if (
+            document.body &&
+            !document.getElementById('app-cache-reset-overlay')
+          ) {
+            document.body.appendChild(box);
+          }
+        } catch (ignored) {}
+      }
+
+      function showResetMessage(message) {
+        try {
+          var box = document.createElement('div');
+          box.id = 'app-cache-reset-overlay';
+          box.style.position = 'fixed';
+          box.style.left = '0';
+          box.style.right = '0';
+          box.style.top = '0';
+          box.style.bottom = '0';
+          box.style.zIndex = '2147483647';
+          box.style.background = '#ffffff';
+          box.style.color = '#111111';
+          box.style.padding = '24px';
+          box.style.fontFamily = 'Arial, sans-serif';
+          box.style.fontSize = '18px';
+          box.innerHTML =
+            '<strong>' + message + '</strong><br><br>Aguarde...';
+
+          if (document.body) {
+            appendResetBox(box);
+          } else if (document.addEventListener) {
+            document.addEventListener('DOMContentLoaded', function () {
+              appendResetBox(box);
+            });
+          }
+        } catch (ignored) {}
+      }
+
+      function redirectClean() {
+        try {
+          var url = new URL(window.location.href);
+          url.searchParams.delete('resetApp');
+          url.searchParams.set('cacheBust', String(Date.now()));
+          window.location.replace(url.toString());
+        } catch (error) {
+          var cleanUrl =
+            window.location.pathname +
+            '?cacheBust=' +
+            String(Date.now()) +
+            window.location.hash;
+          window.location.replace(cleanUrl);
+        }
+      }
+
+      if (!hasResetParam()) return;
+
+      window.__rayssaResettingApp = true;
+      showResetMessage('Limpando cache do app...');
+
+      var tasks = [];
+
+      try {
+        if ('serviceWorker' in navigator) {
+          tasks.push(
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              return Promise.all(
+                regs.map(function (registration) {
+                  return registration.unregister();
+                })
+              );
+            })
+          );
+        }
+      } catch (ignored) {}
+
+      try {
+        if ('caches' in window) {
+          tasks.push(
+            window.caches.keys().then(function (keys) {
+              return Promise.all(
+                keys.map(function (key) {
+                  return window.caches.delete(key);
+                })
+              );
+            })
+          );
+        }
+      } catch (ignored) {}
+
+      try {
+        window.localStorage.clear();
+      } catch (ignored) {}
+      try {
+        window.sessionStorage.clear();
+      } catch (ignored) {}
+
+      Promise.all(tasks).then(
+        function () {
+          window.setTimeout(redirectClean, 700);
+        },
+        function () {
+          window.setTimeout(redirectClean, 700);
+        }
+      );
+    })();
+  </script>
+
   <!--
     If you are serving your web app in a path other than the root, change the
     href value below to reflect the base path you are serving from.
@@ -31,6 +145,201 @@
 
   <title>rayssa_admin</title>
   <link rel="manifest" href="manifest.json">
+
+  <script>
+    (function () {
+      if (window.__rayssaResettingApp) return;
+
+      function escapeHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function safeValue(value, fallback) {
+        try {
+          if (value === undefined || value === null || value === '') {
+            return fallback;
+          }
+          return String(value);
+        } catch (ignored) {
+          return fallback;
+        }
+      }
+
+      function constructorName(value) {
+        try {
+          return value &&
+            value.constructor &&
+            value.constructor.name
+            ? String(value.constructor.name)
+            : 'nao informado';
+        } catch (ignored) {
+          return 'nao informado';
+        }
+      }
+
+      function capabilitiesReport() {
+        var indexedDb = false;
+        var localStorageStatus = 'indisponivel';
+        var serviceWorker = false;
+        var canvas2d = false;
+        var webgl = false;
+        var wasm = false;
+
+        try {
+          indexedDb = !!window.indexedDB;
+        } catch (ignored) {}
+        try {
+          var storageKey = '__rayssa_diagnostic__';
+          window.localStorage.setItem(storageKey, '1');
+          window.localStorage.removeItem(storageKey);
+          localStorageStatus = 'disponivel';
+        } catch (error) {
+          localStorageStatus =
+            'erro: ' + safeValue(error && error.name, 'desconhecido');
+        }
+        try {
+          serviceWorker = !!(
+            window.navigator &&
+            'serviceWorker' in window.navigator
+          );
+        } catch (ignored) {}
+        try {
+          var diagnosticCanvas = document.createElement('canvas');
+          canvas2d = !!diagnosticCanvas.getContext('2d');
+          webgl = !!(
+            diagnosticCanvas.getContext('webgl') ||
+            diagnosticCanvas.getContext('experimental-webgl')
+          );
+        } catch (ignored) {}
+        try {
+          wasm = typeof WebAssembly === 'object';
+        } catch (ignored) {}
+
+        return (
+          'Capacidades:\n' +
+          'WebAssembly: ' + wasm + '\n' +
+          'IndexedDB: ' + indexedDb + '\n' +
+          'localStorage: ' + localStorageStatus + '\n' +
+          'serviceWorker: ' + serviceWorker + '\n' +
+          'canvas2d: ' + canvas2d + '\n' +
+          'webgl: ' + webgl
+        );
+      }
+
+      function showFlutterLoadError(title, details) {
+        try {
+          var existing = document.getElementById('flutter-load-error-overlay');
+          if (existing) {
+            existing.innerHTML +=
+              '<hr><pre style="white-space:pre-wrap;">' +
+              escapeHtml(details) +
+              '</pre>';
+            return;
+          }
+
+          var box = document.createElement('div');
+          box.id = 'flutter-load-error-overlay';
+          box.style.position = 'fixed';
+          box.style.left = '0';
+          box.style.right = '0';
+          box.style.top = '0';
+          box.style.bottom = '0';
+          box.style.zIndex = '2147483647';
+          box.style.background = '#ffffff';
+          box.style.color = '#111111';
+          box.style.padding = '16px';
+          box.style.overflow = 'auto';
+          box.style.fontFamily = 'monospace';
+          box.style.fontSize = '13px';
+          box.style.lineHeight = '1.45';
+          box.innerHTML =
+            '<h2 style="margin:0 0 12px 0;font-family:sans-serif;">' +
+            escapeHtml(title) +
+            '</h2>' +
+            '<pre style="white-space:pre-wrap;">' +
+            escapeHtml(details) +
+            '</pre>';
+
+          if (document.body) {
+            document.body.appendChild(box);
+          } else if (document.addEventListener) {
+            document.addEventListener('DOMContentLoaded', function () {
+              if (document.body && !document.getElementById(box.id)) {
+                document.body.appendChild(box);
+              }
+            });
+          }
+        } catch (ignored) {}
+      }
+
+      window.onerror = function (message, source, lineno, colno, error) {
+        var details =
+          'Mensagem: ' + safeValue(message, '(vazia)') + '\n' +
+          'Arquivo: ' + (source || 'nao informado') + '\n' +
+          'Linha: ' + (lineno || 'nao informada') + '\n' +
+          'Coluna: ' + (colno || 'nao informada') + '\n' +
+          'error.name: ' +
+          safeValue(error && error.name, 'nao informado') + '\n' +
+          'error.toString(): ' +
+          safeValue(error, 'nao informado') + '\n' +
+          'error.constructor.name: ' + constructorName(error) + '\n' +
+          'UserAgent: ' + navigator.userAgent + '\n\n' +
+          capabilitiesReport() + '\n\n' +
+          'Stack:\n' +
+          (error && error.stack ? error.stack : 'sem stack');
+        showFlutterLoadError('Erro ao carregar o app', details);
+        return false;
+      };
+
+      window.onunhandledrejection = function (event) {
+        var reason =
+          event && 'reason' in event ? event.reason : 'sem detalhes';
+        var details =
+          'Promise rejeitada: ' + safeValue(reason, '(vazia)') + '\n' +
+          'reason.name: ' +
+          safeValue(reason && reason.name, 'nao informado') + '\n' +
+          'reason.toString(): ' +
+          safeValue(reason, 'nao informado') + '\n' +
+          'reason.constructor.name: ' + constructorName(reason) + '\n' +
+          'UserAgent: ' + navigator.userAgent + '\n\n' +
+          capabilitiesReport() + '\n\n' +
+          'Stack:\n' +
+          (reason && reason.stack ? reason.stack : 'sem stack');
+        showFlutterLoadError('Erro ao carregar o app', details);
+      };
+
+      setTimeout(function () {
+        try {
+          var started =
+            document.querySelector('flt-glass-pane') ||
+            document.querySelector('flutter-view') ||
+            document.querySelector('canvas') ||
+            document.querySelector('[flt-renderer]');
+          var hasError =
+            document.getElementById('flutter-load-error-overlay');
+          var bodyText = document.body && document.body.innerText
+            ? document.body.innerText.replace(/\s/g, '')
+            : '';
+          var bodyVisuallyEmpty = !started && bodyText.length === 0;
+
+          if ((!started || bodyVisuallyEmpty) && !hasError) {
+            showFlutterLoadError(
+              'Erro ao carregar o app',
+              'Diagnostico: Flutter nao iniciou em 8 segundos.\n' +
+              'UserAgent: ' + navigator.userAgent + '\n' +
+              'URL: ' + window.location.href + '\n\n' +
+              capabilitiesReport()
+            );
+          }
+        } catch (ignored) {}
+      }, 8000);
+    })();
+  </script>
 </head>
 <body>
   <!--
@@ -41,6 +350,13 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    if (!window.__rayssaResettingApp) {
+      var flutterBootstrap = document.createElement('script');
+      flutterBootstrap.src = 'flutter_bootstrap.js';
+      flutterBootstrap.async = true;
+      document.body.appendChild(flutterBootstrap);
+    }
+  </script>
 </body>
 </html>
