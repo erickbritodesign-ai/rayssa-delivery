@@ -27,6 +27,8 @@ class TableSessionModel extends Equatable {
     this.openedByName,
     this.waiterName,
     this.openedByUserId,
+    this.dailyOrderNumber,
+    this.orderDateKey,
     this.orderIds = const [],
   });
 
@@ -51,6 +53,8 @@ class TableSessionModel extends Equatable {
   final String? openedByName;
   final String? waiterName;
   final String? openedByUserId;
+  final int? dailyOrderNumber;
+  final String? orderDateKey;
   final List<String> orderIds;
 
   factory TableSessionModel.fromFirestore(
@@ -88,6 +92,8 @@ class TableSessionModel extends Equatable {
       openedByName: data['openedByName'] as String?,
       waiterName: data['waiterName'] as String?,
       openedByUserId: data['openedByUserId'] as String?,
+      dailyOrderNumber: (data['dailyOrderNumber'] as num?)?.toInt(),
+      orderDateKey: data['orderDateKey'] as String?,
       orderIds: orderIdsRaw is List
           ? orderIdsRaw.map((id) => id.toString()).toList()
           : const [],
@@ -118,6 +124,8 @@ class TableSessionModel extends Equatable {
       'openedByName': openedByName,
       'waiterName': waiterName,
       'openedByUserId': openedByUserId,
+      'dailyOrderNumber': dailyOrderNumber,
+      'orderDateKey': orderDateKey,
       'orderIds': orderIds,
       'linkedOrderIds': orderIds,
     };
@@ -146,6 +154,8 @@ class TableSessionModel extends Equatable {
     openedByName,
     waiterName,
     openedByUserId,
+    dailyOrderNumber,
+    orderDateKey,
     orderIds,
   ];
 }

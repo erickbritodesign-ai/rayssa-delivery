@@ -37,6 +37,8 @@ class OrderModel extends Equatable {
     this.loyaltyPointsAwarded = false,
     this.loyaltyPoints = 0,
     this.loyaltyAwardedAt,
+    this.dailyOrderNumber,
+    this.orderDateKey,
     this.createdAt,
     this.updatedAt,
   });
@@ -70,6 +72,8 @@ class OrderModel extends Equatable {
   final bool loyaltyPointsAwarded;
   final int loyaltyPoints;
   final DateTime? loyaltyAwardedAt;
+  final int? dailyOrderNumber;
+  final String? orderDateKey;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -119,6 +123,8 @@ class OrderModel extends Equatable {
       loyaltyPointsAwarded: data['loyaltyPointsAwarded'] == true,
       loyaltyPoints: (data['loyaltyPoints'] as num?)?.toInt() ?? 0,
       loyaltyAwardedAt: _timestampToDate(data['loyaltyAwardedAt']),
+      dailyOrderNumber: (data['dailyOrderNumber'] as num?)?.toInt(),
+      orderDateKey: data['orderDateKey'] as String?,
       createdAt: _timestampToDate(data['createdAt']),
       updatedAt: _timestampToDate(data['updatedAt']),
     );
@@ -158,6 +164,8 @@ class OrderModel extends Equatable {
       'loyaltyPointsAwarded': loyaltyPointsAwarded,
       'loyaltyPoints': loyaltyPoints,
       'loyaltyAwardedAt': loyaltyAwardedAt,
+      'dailyOrderNumber': dailyOrderNumber,
+      'orderDateKey': orderDateKey,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };
@@ -194,6 +202,8 @@ class OrderModel extends Equatable {
     loyaltyPointsAwarded,
     loyaltyPoints,
     loyaltyAwardedAt,
+    dailyOrderNumber,
+    orderDateKey,
     createdAt,
     updatedAt,
   ];

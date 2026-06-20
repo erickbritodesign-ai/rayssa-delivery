@@ -117,7 +117,9 @@ Future<void> main() async {
       guestPhone: '(11) 98888-7777',
       tableNumber: 1,
       notes: 'Trazer guardanapos',
-      createdAt: DateTime(2026, 6, 20, 18, 48),
+      dailyOrderNumber: 1,
+      orderDateKey: '20260620',
+      createdAt: DateTime.utc(2026, 6, 20, 21, 48),
     );
 
     final receipt = OrderReceiptFormatter.format(
@@ -127,7 +129,9 @@ Future<void> main() async {
     );
 
     expect(receipt, contains('PEDIDO #'));
-    expect(RegExp(r'PEDIDO #\d{6}').hasMatch(receipt), isTrue);
+    expect(receipt, contains('PEDIDO #000001'));
+    expect(receipt, contains('Data: 20/06/2026'));
+    expect(receipt, contains('Hora: 18:48'));
     expect(receipt, contains('Cliente: Joao'));
     expect(receipt, contains('Mesa: 1'));
     expect(receipt, contains('2x Bolo Fatia'));
@@ -141,5 +145,27 @@ Future<void> main() async {
         reason: 'Linha excedeu 24 caracteres: "$line"',
       );
     }
+  });
+
+  test('pads daily order number 23 to six digits', () {
+    final order = OrderModel(
+      id: 'ignored-when-daily-number-exists',
+      userId: 'customer-1',
+      items: const [],
+      subtotal: 0,
+      deliveryFee: 0,
+      total: 0,
+      status: OrderStatus.received,
+      deliveryType: DeliveryType.pickup,
+      paymentMethod: PaymentMethod.pix,
+      paymentStatus: PaymentStatus.pending,
+      dailyOrderNumber: 23,
+      orderDateKey: '20260620',
+      createdAt: DateTime.utc(2026, 6, 20, 12),
+    );
+
+    final receipt = OrderReceiptFormatter.format(order);
+
+    expect(receipt, contains('PEDIDO #000023'));
   });
 }

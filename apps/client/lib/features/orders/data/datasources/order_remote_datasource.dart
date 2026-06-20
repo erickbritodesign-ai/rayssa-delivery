@@ -40,39 +40,48 @@ class OrderRemoteDatasource {
 
   Future<String> createOrder(OrderModel order) async {
     final doc = _firestore.collection(FirestoreCollections.pedidos).doc();
-    final payload = {
-      ...order.toFirestore(),
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-
-    if (!order.loyaltyRewardApplied || order.loyaltyPointsRedeemed <= 0) {
-      await doc.set(payload);
-      return doc.id;
-    }
-
+    final orderDateKey = BrazilClock.dateKey();
+    final counterRef = _firestore
+        .collection(FirestoreCollections.orderCounters)
+        .doc(orderDateKey);
     final userRef =
         _firestore.collection(FirestoreCollections.usuarios).doc(order.userId);
 
     await _firestore.runTransaction((transaction) async {
-      final userSnapshot = await transaction.get(userRef);
-      final userData = userSnapshot.data() ?? <String, dynamic>{};
-      final currentPoints =
-          (userData['loyaltyPoints'] as num?)?.toInt() ?? 0;
-
-      if (currentPoints < order.loyaltyPointsRedeemed) {
-        throw StateError('Pontos insuficientes para aplicar o resgate.');
+      final counterSnapshot = await transaction.get(counterRef);
+      final dailyOrderNumber =
+          ((counterSnapshot.data()?['current'] as num?)?.toInt() ?? 0) + 1;
+      DocumentSnapshot<Map<String, dynamic>>? userSnapshot;
+      if (order.loyaltyRewardApplied && order.loyaltyPointsRedeemed > 0) {
+        userSnapshot = await transaction.get(userRef);
+        final currentPoints =
+            (userSnapshot.data()?['loyaltyPoints'] as num?)?.toInt() ?? 0;
+        if (currentPoints < order.loyaltyPointsRedeemed) {
+          throw StateError('Pontos insuficientes para aplicar o resgate.');
+        }
       }
 
-      transaction.set(doc, payload);
-      transaction.set(
-        userRef,
-        {
-          'loyaltyPoints': FieldValue.increment(-order.loyaltyPointsRedeemed),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      transaction.set(counterRef, {
+        'current': dailyOrderNumber,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      transaction.set(doc, {
+        ...order.toFirestore(),
+        'dailyOrderNumber': dailyOrderNumber,
+        'orderDateKey': orderDateKey,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (userSnapshot != null) {
+        transaction.set(
+          userRef,
+          {
+            'loyaltyPoints': FieldValue.increment(-order.loyaltyPointsRedeemed),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      }
     });
 
     return doc.id;

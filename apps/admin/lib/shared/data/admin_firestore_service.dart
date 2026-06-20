@@ -277,70 +277,85 @@ class AdminFirestoreService {
         _firestore.collection(FirestoreCollections.tables).doc(table.id);
     final cleanName = _nullableText(guestName);
     final cleanPhone = _nullableText(guestPhone);
-    final batch = _firestore.batch();
+    final orderDateKey = BrazilClock.dateKey();
+    final counterRef = _firestore
+        .collection(FirestoreCollections.orderCounters)
+        .doc(orderDateKey);
+    var dailyOrderNumber = 0;
 
-    batch.set(sessionRef, {
-      'tableId': table.id,
-      'tableNumber': table.number,
-      'status': TableSessionStatus.open.value,
-      'items': <Map<String, dynamic>>[],
-      'subtotal': 0,
-      'serviceFee': 0,
-      'discount': 0,
-      'total': 0,
-      'paymentStatus': PaymentStatus.pending.value,
-      'guestName': cleanName,
-      'guestPhone': cleanPhone,
-      'customerNameManual': cleanName,
-      'customerPhoneManual': cleanPhone,
-      'openedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-      'openedByName': user.displayName ?? 'Admin',
-      'waiterName': user.displayName ?? 'Admin',
-      'openedByUserId': user.uid,
-      'orderIds': [orderRef.id],
-      'linkedOrderIds': [orderRef.id],
-    });
+    await _firestore.runTransaction((transaction) async {
+      final counterSnapshot = await transaction.get(counterRef);
+      dailyOrderNumber =
+          ((counterSnapshot.data()?['current'] as num?)?.toInt() ?? 0) + 1;
 
-    batch.set(
-      tableRef,
-      {
-        'number': table.number,
-        'name': table.name,
-        'status': TableStatus.open.value,
-        'currentSessionId': sessionRef.id,
-        'currentTotal': 0,
+      transaction.set(counterRef, {
+        'current': dailyOrderNumber,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      transaction.set(sessionRef, {
+        'tableId': table.id,
+        'tableNumber': table.number,
+        'status': TableSessionStatus.open.value,
+        'items': <Map<String, dynamic>>[],
+        'subtotal': 0,
+        'serviceFee': 0,
+        'discount': 0,
+        'total': 0,
+        'paymentStatus': PaymentStatus.pending.value,
+        'guestName': cleanName,
+        'guestPhone': cleanPhone,
+        'customerNameManual': cleanName,
+        'customerPhoneManual': cleanPhone,
+        'dailyOrderNumber': dailyOrderNumber,
+        'orderDateKey': orderDateKey,
         'openedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-
-    batch.set(orderRef, {
-      ...OrderModel(
-        id: orderRef.id,
-        userId: user.uid,
-        items: const [],
-        subtotal: 0,
-        deliveryFee: 0,
-        total: 0,
-        status: OrderStatus.preparing,
-        deliveryType: DeliveryType.dineIn,
-        paymentMethod: PaymentMethod.notSelected,
-        paymentStatus: PaymentStatus.pending,
-        guestName: cleanName,
-        guestPhone: cleanPhone,
-        tableId: table.id,
-        tableNumber: table.number,
-        tableSessionId: sessionRef.id,
-        dineInStatus: TableSessionStatus.open.value,
-      ).toFirestore(),
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
+        'openedByName': user.displayName ?? 'Admin',
+        'waiterName': user.displayName ?? 'Admin',
+        'openedByUserId': user.uid,
+        'orderIds': [orderRef.id],
+        'linkedOrderIds': [orderRef.id],
+      });
+      transaction.set(
+        tableRef,
+        {
+          'number': table.number,
+          'name': table.name,
+          'status': TableStatus.open.value,
+          'currentSessionId': sessionRef.id,
+          'currentTotal': 0,
+          'openedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+      transaction.set(orderRef, {
+        ...OrderModel(
+          id: orderRef.id,
+          userId: user.uid,
+          items: const [],
+          subtotal: 0,
+          deliveryFee: 0,
+          total: 0,
+          status: OrderStatus.preparing,
+          deliveryType: DeliveryType.dineIn,
+          paymentMethod: PaymentMethod.notSelected,
+          paymentStatus: PaymentStatus.pending,
+          guestName: cleanName,
+          guestPhone: cleanPhone,
+          tableId: table.id,
+          tableNumber: table.number,
+          tableSessionId: sessionRef.id,
+          dineInStatus: TableSessionStatus.open.value,
+          dailyOrderNumber: dailyOrderNumber,
+          orderDateKey: orderDateKey,
+        ).toFirestore(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     });
 
-    await batch.commit();
-    final now = DateTime.now();
+    final now = BrazilClock.now();
     return TableSessionModel(
       id: sessionRef.id,
       tableId: table.id,
@@ -358,6 +373,8 @@ class AdminFirestoreService {
       openedByName: user.displayName ?? 'Admin',
       waiterName: user.displayName ?? 'Admin',
       openedByUserId: user.uid,
+      dailyOrderNumber: dailyOrderNumber,
+      orderDateKey: orderDateKey,
       orderIds: [orderRef.id],
     );
   }

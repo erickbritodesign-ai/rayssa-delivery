@@ -16,8 +16,12 @@ class OrderReceiptFormatter {
       symbol: 'R\$',
       decimalDigits: 2,
     );
-    final date = order.createdAt?.toLocal();
-    final orderNumber = _numericOrderCode(order.id);
+    final date = order.createdAt == null
+        ? BrazilClock.now()
+        : BrazilClock.fromInstant(order.createdAt!);
+    final orderNumber = order.dailyOrderNumber != null
+        ? order.dailyOrderNumber!.toString().padLeft(6, '0')
+        : _numericOrderCode(order.id);
     final receiptCustomerName = _firstNotEmpty(
       order.guestName,
       customerName,
@@ -30,8 +34,8 @@ class OrderReceiptFormatter {
       '## LANCHONETE DA RAY',
       _separator(),
       'PEDIDO #$orderNumber',
-      'Data: ${date == null ? 'N/I' : DateFormat('dd/MM/yyyy').format(date)}',
-      'Hora: ${date == null ? 'N/I' : DateFormat('HH:mm').format(date)}',
+      'Data: ${DateFormat('dd/MM/yyyy').format(date)}',
+      'Hora: ${DateFormat('HH:mm').format(date)}',
       'Tipo: ${_deliveryTypeLabel(order.deliveryType)}',
       _separator(),
       'Cliente: ${_valueOrFallback(receiptCustomerName)}',

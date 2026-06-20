@@ -11,12 +11,21 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
     }
 
+    function isStaff() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'staff';
+    }
+
+    function isAdminOrStaff() {
+      return isAdmin() || isStaff();
+    }
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
     match /usuarios/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      allow read: if isOwner(userId) || isAdminOrStaff();
       allow create: if isOwner(userId);
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
@@ -33,15 +42,39 @@ service cloud.firestore {
     }
 
     match /pedidos/{orderId} {
-      allow read: if isAdmin()
+      allow read: if isAdminOrStaff()
         || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isSignedIn()
-        && request.resource.data.userId == request.auth.uid;
-      allow update: if isAdmin()
+      allow create: if isAdminOrStaff()
+        || (isSignedIn()
+          && request.resource.data.userId == request.auth.uid);
+      allow update: if isAdminOrStaff()
         || (isSignedIn()
           && resource.data.userId == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['paymentStatus', 'updatedAt']));
+      allow delete: if isAdmin();
+    }
+
+    match /tables/{tableId} {
+      allow read, create, update: if isAdminOrStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /table_sessions/{sessionId} {
+      allow read, create, update: if isAdminOrStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /order_counters/{dateKey} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.current == 1
+        && request.resource.data.keys()
+          .hasOnly(['current', 'updatedAt']);
+      allow update: if isSignedIn()
+        && request.resource.data.current == resource.data.current + 1
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['current', 'updatedAt']);
       allow delete: if isAdmin();
     }
 

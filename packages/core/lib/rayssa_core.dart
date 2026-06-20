@@ -18,3 +18,4 @@ export 'src/models/product_model.dart';
 export 'src/models/table_model.dart';
 export 'src/models/table_session_model.dart';
 export 'src/models/user_model.dart';
+export 'src/utils/brazil_clock.dart';

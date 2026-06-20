@@ -1165,6 +1165,8 @@ class _OrderEditorDialogState extends ConsumerState<_OrderEditorDialog> {
       openedByName: widget.session.openedByName,
       waiterName: widget.session.waiterName,
       openedByUserId: widget.session.openedByUserId,
+      dailyOrderNumber: widget.session.dailyOrderNumber,
+      orderDateKey: widget.session.orderDateKey,
       orderIds: widget.session.orderIds,
     );
   }
@@ -1652,6 +1654,8 @@ OrderModel _orderFromSession(TableSessionModel session) {
     tableNumber: session.tableNumber,
     tableSessionId: session.id,
     dineInStatus: session.status.value,
+    dailyOrderNumber: session.dailyOrderNumber,
+    orderDateKey: session.orderDateKey,
     createdAt: session.openedAt,
     updatedAt: session.updatedAt,
   );

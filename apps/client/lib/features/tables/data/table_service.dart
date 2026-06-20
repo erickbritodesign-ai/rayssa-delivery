@@ -101,7 +101,7 @@ class TableService {
         .toList();
     final subtotal = orderItems.fold<double>(
       0,
-      (sum, item) => sum + item.subtotal,
+      (totalValue, item) => totalValue + item.subtotal,
     );
 
     final sessionRef = session == null
@@ -119,80 +119,89 @@ class TableService {
     ]);
     final total = mergedItems.fold<double>(
       0,
-      (sum, item) => sum + item.subtotal,
+      (totalValue, item) => totalValue + item.subtotal,
     );
     final orderIds = [
       if (session != null) ...session.orderIds,
       orderRef.id,
     ];
+    final orderDateKey = BrazilClock.dateKey();
+    final counterRef = _firestore
+        .collection(FirestoreCollections.orderCounters)
+        .doc(orderDateKey);
 
-    final batch = _firestore.batch();
+    await _firestore.runTransaction((transaction) async {
+      final counterSnapshot = await transaction.get(counterRef);
+      final dailyOrderNumber =
+          ((counterSnapshot.data()?['current'] as num?)?.toInt() ?? 0) + 1;
 
-    batch.set(
-      sessionRef,
-      {
-        'tableId': table.id,
-        'tableNumber': table.number,
-        'status': TableSessionStatus.preparing.value,
-        'items': mergedItems.map((item) => item.toMap()).toList(),
-        'subtotal': total,
-        'serviceFee': session?.serviceFee ?? 0,
-        'discount': session?.discount ?? 0,
-        'total': total,
-        'paymentStatus': PaymentStatus.pending.value,
-        'openedAt': session?.openedAt ?? FieldValue.serverTimestamp(),
+      transaction.set(counterRef, {
+        'current': dailyOrderNumber,
         'updatedAt': FieldValue.serverTimestamp(),
-        'openedByName': session?.openedByName ?? openedByName,
-        'waiterName': openedByName,
-        'openedByUserId': session?.openedByUserId ?? openedByUserId,
-        'orderIds': orderIds,
-        'linkedOrderIds': orderIds,
-      },
-      SetOptions(merge: true),
-    );
+      });
+      transaction.set(
+        sessionRef,
+        {
+          'tableId': table.id,
+          'tableNumber': table.number,
+          'status': TableSessionStatus.preparing.value,
+          'items': mergedItems.map((item) => item.toMap()).toList(),
+          'subtotal': total,
+          'serviceFee': session?.serviceFee ?? 0,
+          'discount': session?.discount ?? 0,
+          'total': total,
+          'paymentStatus': PaymentStatus.pending.value,
+          'openedAt': session?.openedAt ?? FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'openedByName': session?.openedByName ?? openedByName,
+          'waiterName': openedByName,
+          'openedByUserId': session?.openedByUserId ?? openedByUserId,
+          if (session == null) 'dailyOrderNumber': dailyOrderNumber,
+          if (session == null) 'orderDateKey': orderDateKey,
+          'orderIds': orderIds,
+          'linkedOrderIds': orderIds,
+        },
+        SetOptions(merge: true),
+      );
+      transaction.set(
+        tableRef,
+        {
+          'number': table.number,
+          'name': table.name,
+          'status': TableStatus.preparing.value,
+          'currentSessionId': sessionRef.id,
+          'currentTotal': total,
+          'openedAt': session?.openedAt ?? FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
 
-    batch.set(
-      tableRef,
-      {
-        'number': table.number,
-        'name': table.name,
-        'status': TableStatus.preparing.value,
-        'currentSessionId': sessionRef.id,
-        'currentTotal': total,
-        'openedAt': session?.openedAt ?? FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-
-    final order = OrderModel(
-      id: '',
-      userId: openedByUserId,
-      items: orderItems,
-      subtotal: subtotal,
-      deliveryFee: 0,
-      total: subtotal,
-      status: OrderStatus.preparing,
-      deliveryType: DeliveryType.dineIn,
-      paymentMethod: PaymentMethod.notSelected,
-      paymentStatus: PaymentStatus.pending,
-      notes: notes,
-      tableId: table.id,
-      tableNumber: table.number,
-      tableSessionId: sessionRef.id,
-      dineInStatus: TableSessionStatus.preparing.value,
-    );
-
-    batch.set(
-      orderRef,
-      {
+      final order = OrderModel(
+        id: '',
+        userId: openedByUserId,
+        items: orderItems,
+        subtotal: subtotal,
+        deliveryFee: 0,
+        total: subtotal,
+        status: OrderStatus.preparing,
+        deliveryType: DeliveryType.dineIn,
+        paymentMethod: PaymentMethod.notSelected,
+        paymentStatus: PaymentStatus.pending,
+        notes: notes,
+        tableId: table.id,
+        tableNumber: table.number,
+        tableSessionId: sessionRef.id,
+        dineInStatus: TableSessionStatus.preparing.value,
+        dailyOrderNumber: dailyOrderNumber,
+        orderDateKey: orderDateKey,
+      );
+      transaction.set(orderRef, {
         ...order.toFirestore(),
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-      },
-    );
-
-    await batch.commit();
+      });
+    });
     return sessionRef.id;
   }
 
